@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { appointmentsApi } from "@/lib/api";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -7,10 +8,11 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Calendar, Plus, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
 
 export default function Appointments() {
   const [search, setSearch] = useState("");
+  const [bookingOpen, setBookingOpen] = useState(false);
 
   const { data: appointments, isLoading } = useQuery({
     queryKey: ["appointments"],
@@ -34,7 +36,7 @@ export default function Appointments() {
         title="Appointments"
         description="Manage and schedule homecare visits"
         action={
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => setBookingOpen(true)}>
             <Plus className="w-4 h-4" />
             Book Appointment
           </Button>
@@ -76,7 +78,7 @@ export default function Appointments() {
           }
           action={
             !search && (
-              <Button className="gap-2">
+              <Button className="gap-2" onClick={() => setBookingOpen(true)}>
                 <Plus className="w-4 h-4" />
                 Book Appointment
               </Button>
@@ -84,6 +86,8 @@ export default function Appointments() {
           }
         />
       )}
+
+      <BookAppointmentDialog open={bookingOpen} onOpenChange={setBookingOpen} />
     </div>
   );
 }

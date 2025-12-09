@@ -113,4 +113,14 @@ export const specializationsApi = {
     if (!res.ok) throw new Error("Failed to fetch specializations");
     return res.json();
   },
+
+  getPhysicians: async (specializationId: number): Promise<PhysicianSendDto[]> => {
+    const res = await fetch(`${BASE_URL}/specialization/GetPhysicians/${specializationId}`);
+    if (!res.ok) throw new Error("Failed to fetch physicians for specialization");
+    return res.json();
+  },
 };
+
+export interface AvailableHoursDto {
+  availableSlots: string[];
+}
