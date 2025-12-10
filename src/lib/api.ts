@@ -102,6 +102,22 @@ export const appointmentsApi = {
     });
     if (!res.ok) throw new Error("Failed to book appointment");
   },
+
+  update: async (id: string, data: AppointmentCreateDto): Promise<void> => {
+    const res = await fetch(`${BASE_URL}/appointments/UpdateAppointment/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error("Failed to update appointment");
+  },
+
+  delete: async (id: string): Promise<void> => {
+    const res = await fetch(`${BASE_URL}/appointments/DeleteAppointment/${id}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) throw new Error("Failed to delete appointment");
+  },
 };
 
 export const physiciansApi = {
@@ -129,6 +145,27 @@ export const physiciansApi = {
       body: formData,
     });
     if (!res.ok) throw new Error("Failed to add physician");
+  },
+
+  update: async (id: number, data: Partial<PhysicianCreateDto>): Promise<void> => {
+    const formData = new FormData();
+    if (data.name) formData.append("Name", data.name);
+    if (data.specializationId) formData.append("SpecializationId", data.specializationId.toString());
+    if (data.clinicalAddress) formData.append("ClinicalAddress", data.clinicalAddress);
+    if (data.image) formData.append("Image", data.image);
+    
+    const res = await fetch(`${BASE_URL}/physician/UpdatePhysician/${id}`, {
+      method: "PUT",
+      body: formData,
+    });
+    if (!res.ok) throw new Error("Failed to update physician");
+  },
+
+  delete: async (id: number): Promise<void> => {
+    const res = await fetch(`${BASE_URL}/physician/DeletePhysician/${id}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) throw new Error("Failed to delete physician");
   },
 };
 
@@ -161,6 +198,30 @@ export const patientsApi = {
     });
     if (!res.ok) throw new Error("Failed to add patient");
   },
+
+  update: async (id: number, data: Partial<PatientCreateDto>): Promise<void> => {
+    const formData = new FormData();
+    if (data.name) formData.append("Name", data.name);
+    if (data.phone) formData.append("Phone", data.phone);
+    if (data.gender) formData.append("Gender", data.gender);
+    if (data.address) formData.append("Address", data.address);
+    if (data.city) formData.append("City", data.city);
+    if (data.subscriptionId !== undefined) formData.append("SubscriptionId", data.subscriptionId.toString());
+    if (data.image) formData.append("Image", data.image);
+    
+    const res = await fetch(`${BASE_URL}/patient/UpdatePatient/${id}`, {
+      method: "PUT",
+      body: formData,
+    });
+    if (!res.ok) throw new Error("Failed to update patient");
+  },
+
+  delete: async (id: number): Promise<void> => {
+    const res = await fetch(`${BASE_URL}/patient/DeletePatient/${id}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) throw new Error("Failed to delete patient");
+  },
 };
 
 export const specializationsApi = {
@@ -177,12 +238,28 @@ export const specializationsApi = {
   },
 
   create: async (data: SpecializationCreateDto): Promise<void> => {
-    const res = await fetch(`${BASE_URL}/specialization`, {
+    const res = await fetch(`${BASE_URL}/specialization/AddSpecialization`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error("Failed to add specialization");
+  },
+
+  update: async (id: number, data: Partial<SpecializationCreateDto>): Promise<void> => {
+    const res = await fetch(`${BASE_URL}/specialization/UpdateSpecialization/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, ...data }),
+    });
+    if (!res.ok) throw new Error("Failed to update specialization");
+  },
+
+  delete: async (id: number): Promise<void> => {
+    const res = await fetch(`${BASE_URL}/specialization/DeleteSpecialization/${id}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) throw new Error("Failed to delete specialization");
   },
 };
 

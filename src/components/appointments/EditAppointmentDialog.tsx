@@ -1,0 +1,166 @@
+import { useState, useEffect } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { appointmentsApi, patientsApi, physiciansApi, AppointmentSendDto } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
+
+interface EditAppointmentDialogProps {
+  appointment: AppointmentSendDto | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function EditAppointmentDialog({
+  appointment,
+  open,
+  onOpenChange,
+}: EditAppointmentDialogProps) {
+  const [appointmentDate, setAppointmentDate] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
+  const [patientId, setPatientId] = useState<string>("");
+  const [physicianId, setPhysicianId] = useState<string>("");
+  const [meetingAddress, setMeetingAddress] = useState("");
+  const [physicianNotes, setPhysicianNotes] = useState("");
+  const queryClient = useQueryClient();
+
+  const { data: patients } = useQuery({
+    queryKey: ["patients"],
+    queryFn: patientsApi.getAll,
+  });
+
+  const { data: physicians } = useQuery({
+    queryKey: ["physicians"],
+    queryFn: physiciansApi.getAll,
+  });
+
+  useEffect(() => {
+    if (appointment && patients && physicians) {
+      setAppointmentDate(appointment.appointmentDate.split("T")[0]);
+      setStartTime(appointment.startTime);
+      setEndTime(appointment.endTime);
+      setMeetingAddress(appointment.meetingAddress);
+      setPhysicianNotes(appointment.physicianNotes || "");
+      
+      const patient = patients.find(p => p.name === appointment.patientName);
+      const physician = physicians.find(p => p.name === appointment.physicianName);
+      setPatientId(patient?.id.toString() || "");
+      setPhysicianId(physician?.id.toString() || "");
+    }
+  }, [appointment, patients, physicians]);
+
+  const mutation = useMutation({
+    mutationFn: (data: {
+      appointmentDate: string;
+      startTime: string;
+      endTime: string;
+      patientId: number;
+      physicianId: number;
+      meetingAddress: string;
+      physicianNotes: string;
+    }) => appointmentsApi.update(appointment!.id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      toast.success("Appointment updated successfully");
+      onOpenChange(false);
+    },
+    onError: () => {
+      toast.error("Failed to update appointment");
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!appointmentDate || !startTime || !endTime || !patientId || !physicianId) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+    mutation.mutate({
+      appointmentDate,
+      startTime,
+      endTime,
+      patientId: parseInt(patientId),
+      physicianId: parseInt(physicianId),
+      meetingAddress,
+      physicianNotes,
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Edit Appointment</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="edit-apt-date">Date *</Label>
+            <Input id="edit-apt-date" type="date" value={appointmentDate} onChange={(e) => setAppointmentDate(e.target.value)} />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-apt-start">Start Time *</Label>
+              <Input id="edit-apt-start" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-apt-end">End Time *</Label>
+              <Input id="edit-apt-end" type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Patient *</Label>
+            <Select value={patientId} onValueChange={setPatientId}>
+              <SelectTrigger><SelectValue placeholder="Select patient" /></SelectTrigger>
+              <SelectContent>
+                {patients?.map((p) => (
+                  <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Physician *</Label>
+            <Select value={physicianId} onValueChange={setPhysicianId}>
+              <SelectTrigger><SelectValue placeholder="Select physician" /></SelectTrigger>
+              <SelectContent>
+                {physicians?.map((p) => (
+                  <SelectItem key={p.id} value={p.id.toString()}>Dr. {p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="edit-apt-address">Meeting Address</Label>
+            <Input id="edit-apt-address" value={meetingAddress} onChange={(e) => setMeetingAddress(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="edit-apt-notes">Notes</Label>
+            <Textarea id="edit-apt-notes" value={physicianNotes} onChange={(e) => setPhysicianNotes(e.target.value)} rows={3} />
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="submit" disabled={mutation.isPending}>
+              {mutation.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
