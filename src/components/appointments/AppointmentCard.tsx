@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppointmentSendDto, appointmentsApi } from "@/lib/api";
-import { Calendar, Clock, MapPin, User, Stethoscope, Pencil, Trash2 } from "lucide-react";
+import { Calendar, Clock, MapPin, User, Stethoscope, Pencil, Trash2, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { EditAppointmentDialog } from "./EditAppointmentDialog";
 import { DeleteConfirmDialog } from "@/components/common/DeleteConfirmDialog";
+import { AddReportDialog } from "./AddReportDialog";
 import { toast } from "sonner";
 
 interface AppointmentCardProps {
@@ -17,6 +18,7 @@ interface AppointmentCardProps {
 export function AppointmentCard({ appointment, onClick }: AppointmentCardProps) {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const queryClient = useQueryClient();
   const formattedDate = format(parseISO(appointment.appointmentDate), "MMM d, yyyy");
 
@@ -50,6 +52,15 @@ export function AppointmentCard({ appointment, onClick }: AppointmentCardProps) 
               <Clock className="w-4 h-4" />
               <span>{appointment.startTime} - {appointment.endTime}</span>
             </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-primary hover:text-primary"
+              onClick={(e) => { e.stopPropagation(); setReportOpen(true); }}
+              title="Add Report"
+            >
+              <FileText className="w-3.5 h-3.5" />
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -111,6 +122,13 @@ export function AppointmentCard({ appointment, onClick }: AppointmentCardProps) 
         description={`Are you sure you want to delete this appointment with ${appointment.patientName}? This action cannot be undone.`}
         onConfirm={() => deleteMutation.mutate()}
         isLoading={deleteMutation.isPending}
+      />
+      <AddReportDialog
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        appointmentId={appointment.id}
+        patientId={appointment.patientId}
+        physicianId={appointment.physicianId}
       />
     </>
   );

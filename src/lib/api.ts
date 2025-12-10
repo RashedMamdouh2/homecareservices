@@ -15,7 +15,9 @@ export interface AppointmentSendDto {
   endTime: string;
   meetingAddress: string;
   appointmentDate: string;
+  patientId: number;
   patientName: string;
+  physicianId: number;
   physicianName: string;
   physicianNotes: string;
   medications: MedicationDto[];
@@ -81,6 +83,21 @@ export interface SpecializationCreateDto {
 }
 
 // API Functions
+export interface ReportMedicationDto {
+  name: string;
+  description: string;
+  doseFrequency: number;
+  dose: number;
+  usageTimes: string[];
+}
+
+export interface ReportCreateDto {
+  descritpion: string;
+  patientId: number;
+  physicianId: number;
+  medications: ReportMedicationDto[];
+}
+
 export const appointmentsApi = {
   getAll: async (): Promise<AppointmentSendDto[]> => {
     const res = await fetch(`${BASE_URL}/appointments/GetAllAppointments`);
@@ -117,6 +134,15 @@ export const appointmentsApi = {
       method: "DELETE",
     });
     if (!res.ok) throw new Error("Failed to delete appointment");
+  },
+
+  addReport: async (appointmentId: string, data: ReportCreateDto): Promise<void> => {
+    const res = await fetch(`${BASE_URL}/Appointments/Add/Appointment/Report/${appointmentId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error("Failed to add report");
   },
 };
 
