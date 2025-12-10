@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AppointmentSendDto, appointmentsApi } from "@/lib/api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { AppointmentSendDto, appointmentsApi, patientsApi, physiciansApi } from "@/lib/api";
 import { Calendar, Clock, MapPin, User, Stethoscope, Pencil, Trash2, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
@@ -21,6 +21,21 @@ export function AppointmentCard({ appointment, onClick }: AppointmentCardProps) 
   const [reportOpen, setReportOpen] = useState(false);
   const queryClient = useQueryClient();
   const formattedDate = format(parseISO(appointment.appointmentDate), "MMM d, yyyy");
+
+  // Fetch patients and physicians to get IDs by name
+  const { data: patients = [] } = useQuery({
+    queryKey: ["patients"],
+    queryFn: patientsApi.getAll,
+  });
+
+  const { data: physicians = [] } = useQuery({
+    queryKey: ["physicians"],
+    queryFn: physiciansApi.getAll,
+  });
+
+  // Look up IDs by name from the appointment
+  const patientId = patients.find(p => p.name === appointment.patientName)?.id ?? 0;
+  const physicianId = physicians.find(p => p.name === appointment.physicianName)?.id ?? 0;
 
   const deleteMutation = useMutation({
     mutationFn: () => appointmentsApi.delete(appointment.id),
@@ -127,8 +142,8 @@ export function AppointmentCard({ appointment, onClick }: AppointmentCardProps) 
         open={reportOpen}
         onOpenChange={setReportOpen}
         appointmentId={appointment.id}
-        patientId={appointment.patientId}
-        physicianId={appointment.physicianId}
+        patientId={patientId}
+        physicianId={physicianId}
       />
     </>
   );
