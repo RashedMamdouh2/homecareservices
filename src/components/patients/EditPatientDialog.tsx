@@ -45,6 +45,7 @@ export function EditPatientDialog({
   const [subscriptionId, setSubscriptionId] = useState<number>(0);
   const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [originalImageBase64, setOriginalImageBase64] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -57,8 +58,22 @@ export function EditPatientDialog({
       setSubscriptionId(patient.subscriptionId ?? 0);
       setImage(null);
       setImagePreview(patient.image ? `data:image/jpeg;base64,${patient.image}` : null);
+      setOriginalImageBase64(patient.image || null);
     }
   }, [patient]);
+
+  // Helper to convert base64 to File
+  const base64ToFile = (base64: string, filename: string): File => {
+    const arr = base64.split(',');
+    const mime = arr.length > 1 ? arr[0].match(/:(.*?);/)?.[1] || 'image/jpeg' : 'image/jpeg';
+    const bstr = atob(arr.length > 1 ? arr[1] : base64);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new File([u8arr], filename, { type: mime });
+  };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -89,6 +104,20 @@ export function EditPatientDialog({
       toast.error("Please fill in required fields");
       return;
     }
+    
+    // Use the new image if selected, otherwise convert original base64 to File
+    let imageToSend: File | undefined;
+    if (image) {
+      imageToSend = image;
+    } else if (originalImageBase64) {
+      imageToSend = base64ToFile(originalImageBase64, "patient-image.jpg");
+    }
+    
+    if (!imageToSend) {
+      toast.error("Image is required");
+      return;
+    }
+    
     mutation.mutate({ 
       name, 
       phone, 
@@ -96,7 +125,7 @@ export function EditPatientDialog({
       city, 
       gender, 
       subscriptionId,
-      ...(image && { image }) 
+      image: imageToSend
     });
   };
 
