@@ -143,8 +143,8 @@ export const appointmentsApi = {
       body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error("Failed to add report");
-    const base64Pdf = await res.text();
-    return base64Pdf;
+    const result = await res.json();
+    return result.pdfBase64;
   },
 };
 
