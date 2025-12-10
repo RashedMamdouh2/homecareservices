@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AppointmentSendDto, appointmentsApi, MedicationDto } from "@/lib/api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { AppointmentSendDto, appointmentsApi, MedicationDto, patientsApi, physiciansApi } from "@/lib/api";
 import { Calendar, Clock, MapPin, User, Stethoscope, Pencil, Trash2, FileText, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
@@ -29,6 +29,16 @@ export function AppointmentCard({ appointment, onClick }: AppointmentCardProps) 
   const queryClient = useQueryClient();
   const formattedDate = format(parseISO(appointment.appointmentDate), "MMM d, yyyy");
 
+  const { data: patients = [] } = useQuery({
+    queryKey: ["patients"],
+    queryFn: patientsApi.getAll,
+  });
+
+  const { data: physicians = [] } = useQuery({
+    queryKey: ["physicians"],
+    queryFn: physiciansApi.getAll,
+  });
+
   const deleteMutation = useMutation({
     mutationFn: () => appointmentsApi.delete(appointment.id),
     onSuccess: () => {
@@ -48,9 +58,12 @@ export function AppointmentCard({ appointment, onClick }: AppointmentCardProps) 
     try {
       const appointmentDetails = await appointmentsApi.getById(appointment.id);
       
-      // Store the IDs from the fetched appointment details
-      setReportPatientId(appointmentDetails.patientId);
-      setReportPhysicianId(appointmentDetails.physicianId);
+      // Look up patientId and physicianId by name since GetAppointment doesn't return IDs
+      const patient = patients.find(p => p.name === appointmentDetails.patientName);
+      const physician = physicians.find(p => p.name === appointmentDetails.physicianName);
+      
+      if (patient) setReportPatientId(patient.id);
+      if (physician) setReportPhysicianId(physician.id);
       
       if (appointmentDetails.pdfBase64) {
         setExistingPdf(appointmentDetails.pdfBase64);
