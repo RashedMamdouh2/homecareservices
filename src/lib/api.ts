@@ -177,6 +177,7 @@ export const physiciansApi = {
 
   update: async (id: number, data: Partial<PhysicianCreateDto>): Promise<void> => {
     const formData = new FormData();
+    formData.append("id", id.toString());
     if (data.name) formData.append("Name", data.name);
     if (data.specializationId) formData.append("SpecializationId", data.specializationId.toString());
     if (data.clinicalAddress) formData.append("ClinicalAddress", data.clinicalAddress);
@@ -229,6 +230,7 @@ export const patientsApi = {
 
   update: async (id: number, data: Partial<PatientCreateDto>): Promise<void> => {
     const formData = new FormData();
+    formData.append("id", id.toString());
     if (data.name) formData.append("Name", data.name);
     if (data.phone) formData.append("Phone", data.phone);
     if (data.gender) formData.append("Gender", data.gender);
