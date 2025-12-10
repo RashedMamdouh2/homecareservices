@@ -104,7 +104,7 @@ export const appointmentsApi = {
   },
 
   update: async (id: string, data: AppointmentCreateDto): Promise<void> => {
-    const res = await fetch(`${BASE_URL}/appointments/UpdateAppointment/${id}`, {
+    const res = await fetch(`${BASE_URL}/appointments/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -113,7 +113,7 @@ export const appointmentsApi = {
   },
 
   delete: async (id: string): Promise<void> => {
-    const res = await fetch(`${BASE_URL}/appointments/DeleteAppointment/${id}`, {
+    const res = await fetch(`${BASE_URL}/appointments/${id}`, {
       method: "DELETE",
     });
     if (!res.ok) throw new Error("Failed to delete appointment");
@@ -154,7 +154,7 @@ export const physiciansApi = {
     if (data.clinicalAddress) formData.append("ClinicalAddress", data.clinicalAddress);
     if (data.image) formData.append("Image", data.image);
     
-    const res = await fetch(`${BASE_URL}/physician/UpdatePhysician/${id}`, {
+    const res = await fetch(`${BASE_URL}/physician/${id}`, {
       method: "PUT",
       body: formData,
     });
@@ -162,7 +162,7 @@ export const physiciansApi = {
   },
 
   delete: async (id: number): Promise<void> => {
-    const res = await fetch(`${BASE_URL}/physician/DeletePhysician/${id}`, {
+    const res = await fetch(`${BASE_URL}/physician/${id}`, {
       method: "DELETE",
     });
     if (!res.ok) throw new Error("Failed to delete physician");
@@ -209,7 +209,7 @@ export const patientsApi = {
     if (data.subscriptionId !== undefined) formData.append("SubscriptionId", data.subscriptionId.toString());
     if (data.image) formData.append("Image", data.image);
     
-    const res = await fetch(`${BASE_URL}/patient/UpdatePatient/${id}`, {
+    const res = await fetch(`${BASE_URL}/patient/${id}`, {
       method: "PUT",
       body: formData,
     });
@@ -217,7 +217,7 @@ export const patientsApi = {
   },
 
   delete: async (id: number): Promise<void> => {
-    const res = await fetch(`${BASE_URL}/patient/DeletePatient/${id}`, {
+    const res = await fetch(`${BASE_URL}/patient/${id}`, {
       method: "DELETE",
     });
     if (!res.ok) throw new Error("Failed to delete patient");
@@ -247,7 +247,7 @@ export const specializationsApi = {
   },
 
   update: async (id: number, data: Partial<SpecializationCreateDto>): Promise<void> => {
-    const res = await fetch(`${BASE_URL}/specialization/UpdateSpecialization/${id}`, {
+    const res = await fetch(`${BASE_URL}/specialization/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, ...data }),
@@ -256,7 +256,7 @@ export const specializationsApi = {
   },
 
   delete: async (id: number): Promise<void> => {
-    const res = await fetch(`${BASE_URL}/specialization/DeleteSpecialization/${id}`, {
+    const res = await fetch(`${BASE_URL}/specialization/${id}`, {
       method: "DELETE",
     });
     if (!res.ok) throw new Error("Failed to delete specialization");
