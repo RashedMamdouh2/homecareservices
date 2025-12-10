@@ -62,17 +62,31 @@ export function EditPatientDialog({
     }
   }, [patient]);
 
-  // Helper to convert base64 to File
+  // Helper to convert base64 to File for IFormFile binding
   const base64ToFile = (base64: string, filename: string): File => {
-    const arr = base64.split(',');
-    const mime = arr.length > 1 ? arr[0].match(/:(.*?);/)?.[1] || 'image/jpeg' : 'image/jpeg';
-    const bstr = atob(arr.length > 1 ? arr[1] : base64);
-    let n = bstr.length;
-    const u8arr = new Uint8Array(n);
-    while (n--) {
-      u8arr[n] = bstr.charCodeAt(n);
+    // Handle both raw base64 and data URL format
+    let actualBase64 = base64;
+    let mime = 'image/jpeg';
+    
+    if (base64.includes(',')) {
+      const parts = base64.split(',');
+      const mimeMatch = parts[0].match(/:(.*?);/);
+      if (mimeMatch) {
+        mime = mimeMatch[1];
+      }
+      actualBase64 = parts[1];
     }
-    return new File([u8arr], filename, { type: mime });
+    
+    const byteString = atob(actualBase64);
+    const arrayBuffer = new ArrayBuffer(byteString.length);
+    const uint8Array = new Uint8Array(arrayBuffer);
+    
+    for (let i = 0; i < byteString.length; i++) {
+      uint8Array[i] = byteString.charCodeAt(i);
+    }
+    
+    const blob = new Blob([uint8Array], { type: mime });
+    return new File([blob], filename, { type: mime, lastModified: Date.now() });
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
