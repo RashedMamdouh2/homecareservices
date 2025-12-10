@@ -6,7 +6,8 @@ import {
   Stethoscope, 
   HeartPulse,
   Menu,
-  X
+  X,
+  Layers
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -14,6 +15,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/appointments", icon: Calendar, label: "Appointments" },
+  { to: "/specializations", icon: Layers, label: "Specializations" },
   { to: "/physicians", icon: Stethoscope, label: "Physicians" },
   { to: "/patients", icon: Users, label: "Patients" },
 ];

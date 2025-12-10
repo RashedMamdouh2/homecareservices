@@ -71,6 +71,13 @@ export interface PatientCreateDto {
 export interface SpecializationDto {
   id: number;
   name: string;
+  description?: string;
+}
+
+export interface SpecializationCreateDto {
+  id: number;
+  name: string;
+  description: string;
 }
 
 // API Functions
@@ -167,6 +174,15 @@ export const specializationsApi = {
     const res = await fetch(`${BASE_URL}/specialization/GetPhysicians/${specializationId}`);
     if (!res.ok) throw new Error("Failed to fetch physicians for specialization");
     return res.json();
+  },
+
+  create: async (data: SpecializationCreateDto): Promise<void> => {
+    const res = await fetch(`${BASE_URL}/specialization`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error("Failed to add specialization");
   },
 };
 
