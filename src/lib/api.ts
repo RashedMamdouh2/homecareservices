@@ -44,7 +44,7 @@ export interface PhysicianCreateDto {
   name: string;
   clinicalAddress: string;
   specializationId: number;
-  image?: string;
+  image: File;
 }
 
 export interface PatientSendDto {
@@ -54,6 +54,7 @@ export interface PatientSendDto {
   address: string;
   city: string;
   gender: string;
+  subscriptionId?: number;
   image?: string;
 }
 
@@ -63,7 +64,8 @@ export interface PatientCreateDto {
   address: string;
   city: string;
   gender: string;
-  image?: string;
+  subscriptionId: number;
+  image: File;
 }
 
 export interface SpecializationDto {
@@ -109,10 +111,15 @@ export const physiciansApi = {
   },
 
   create: async (data: PhysicianCreateDto): Promise<void> => {
+    const formData = new FormData();
+    formData.append("Name", data.name);
+    formData.append("SpecializationId", data.specializationId.toString());
+    formData.append("ClinicalAddress", data.clinicalAddress);
+    formData.append("Image", data.image);
+    
     const res = await fetch(`${BASE_URL}/physician/AddPhysician`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+      body: formData,
     });
     if (!res.ok) throw new Error("Failed to add physician");
   },
@@ -132,10 +139,18 @@ export const patientsApi = {
   },
 
   create: async (data: PatientCreateDto): Promise<void> => {
+    const formData = new FormData();
+    formData.append("Name", data.name);
+    formData.append("Phone", data.phone);
+    formData.append("Gender", data.gender);
+    formData.append("Address", data.address);
+    formData.append("City", data.city);
+    formData.append("SubscriptionId", data.subscriptionId.toString());
+    formData.append("Image", data.image);
+    
     const res = await fetch(`${BASE_URL}/patient/AddPatient`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+      body: formData,
     });
     if (!res.ok) throw new Error("Failed to add patient");
   },
