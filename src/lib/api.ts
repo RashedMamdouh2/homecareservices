@@ -136,13 +136,15 @@ export const appointmentsApi = {
     if (!res.ok) throw new Error("Failed to delete appointment");
   },
 
-  addReport: async (appointmentId: string, data: ReportCreateDto): Promise<void> => {
+  addReport: async (appointmentId: string, data: ReportCreateDto): Promise<string> => {
     const res = await fetch(`${BASE_URL}/Appointments/Add/Appointment/Report/${appointmentId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error("Failed to add report");
+    const base64Pdf = await res.text();
+    return base64Pdf;
   },
 };
 
