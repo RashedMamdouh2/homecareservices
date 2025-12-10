@@ -4,10 +4,10 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { PhysicianCard } from "@/components/physicians/PhysicianCard";
 import { PageLoader } from "@/components/common/LoadingSpinner";
 import { EmptyState } from "@/components/common/EmptyState";
-import { Button } from "@/components/ui/button";
-import { Stethoscope, Plus, Search, Filter } from "lucide-react";
+import { Stethoscope, Search, Filter } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
+import { AddPhysicianDialog } from "@/components/physicians/AddPhysicianDialog";
 import {
   Select,
   SelectContent,
@@ -52,12 +52,7 @@ export default function Physicians() {
       <PageHeader
         title="Physicians"
         description="Our team of qualified healthcare professionals"
-        action={
-          <Button className="gap-2">
-            <Plus className="w-4 h-4" />
-            Add Physician
-          </Button>
-        }
+        action={<AddPhysicianDialog />}
       />
 
       {/* Search and Filter */}
@@ -111,12 +106,7 @@ export default function Physicians() {
               : "Add your first physician to the team."
           }
           action={
-            !search && selectedSpecialization === "all" && (
-              <Button className="gap-2">
-                <Plus className="w-4 h-4" />
-                Add Physician
-              </Button>
-            )
+            !search && selectedSpecialization === "all" && <AddPhysicianDialog />
           }
         />
       )}

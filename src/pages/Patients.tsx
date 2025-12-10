@@ -4,10 +4,10 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { PatientCard } from "@/components/patients/PatientCard";
 import { PageLoader } from "@/components/common/LoadingSpinner";
 import { EmptyState } from "@/components/common/EmptyState";
-import { Button } from "@/components/ui/button";
-import { Users, Plus, Search } from "lucide-react";
+import { Users, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
+import { AddPatientDialog } from "@/components/patients/AddPatientDialog";
 
 export default function Patients() {
   const [search, setSearch] = useState("");
@@ -33,12 +33,7 @@ export default function Patients() {
       <PageHeader
         title="Patients"
         description="Manage your patient records and information"
-        action={
-          <Button className="gap-2">
-            <Plus className="w-4 h-4" />
-            Add Patient
-          </Button>
-        }
+        action={<AddPatientDialog />}
       />
 
       {/* Search */}
@@ -75,12 +70,7 @@ export default function Patients() {
               : "Register your first patient to get started."
           }
           action={
-            !search && (
-              <Button className="gap-2">
-                <Plus className="w-4 h-4" />
-                Add Patient
-              </Button>
-            )
+            !search && <AddPatientDialog />
           }
         />
       )}
