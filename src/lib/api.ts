@@ -1,4 +1,4 @@
-const BASE_URL = "http://homecareservice.runasp.net/api";
+const BASE_URL = "https://homecareservice.runasp.net/api";
 
 // Types
 export interface MedicationDto {
