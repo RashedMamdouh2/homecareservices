@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Plus, Trash2, Clock } from "lucide-react";
+import { Plus, Trash2, Clock, FileDown, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface AddReportDialogProps {
@@ -47,6 +47,7 @@ export function AddReportDialog({
   const [description, setDescription] = useState("");
   const [medications, setMedications] = useState<MedicationForm[]>([]);
   const [showTimeSelector, setShowTimeSelector] = useState<number | null>(null);
+  const [pdfBase64, setPdfBase64] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
@@ -57,11 +58,10 @@ export function AddReportDialog({
         physicianId,
         medications: medications as ReportMedicationDto[],
       }),
-    onSuccess: () => {
+    onSuccess: (base64Pdf) => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       toast.success("Report added successfully");
-      resetForm();
-      onOpenChange(false);
+      setPdfBase64(base64Pdf);
     },
     onError: () => {
       toast.error("Failed to add report");
@@ -72,6 +72,20 @@ export function AddReportDialog({
     setDescription("");
     setMedications([]);
     setShowTimeSelector(null);
+    setPdfBase64(null);
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onOpenChange(false);
+  };
+
+  const downloadPdf = () => {
+    if (!pdfBase64) return;
+    const link = document.createElement("a");
+    link.href = `data:application/pdf;base64,${pdfBase64}`;
+    link.download = `report-${appointmentId}.pdf`;
+    link.click();
   };
 
   const addMedication = () => {
@@ -109,11 +123,33 @@ export function AddReportDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add Appointment Report</DialogTitle>
+          <DialogTitle>
+            {pdfBase64 ? "Report Generated" : "Add Appointment Report"}
+          </DialogTitle>
         </DialogHeader>
+
+        {pdfBase64 ? (
+          <div className="space-y-4">
+            <div className="border border-border rounded-lg overflow-hidden bg-muted/30">
+              <iframe
+                src={`data:application/pdf;base64,${pdfBase64}`}
+                className="w-full h-[60vh]"
+                title="Report PDF"
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={handleClose}>
+                <X className="w-4 h-4 mr-2" /> Close
+              </Button>
+              <Button onClick={downloadPdf}>
+                <FileDown className="w-4 h-4 mr-2" /> Download PDF
+              </Button>
+            </div>
+          </div>
+        ) : (
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="description">Report Description</Label>
@@ -241,7 +277,7 @@ export function AddReportDialog({
           </div>
 
           <div className="flex justify-end gap-3">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={handleClose}>
               Cancel
             </Button>
             <Button type="submit" disabled={mutation.isPending}>
@@ -249,6 +285,7 @@ export function AddReportDialog({
             </Button>
           </div>
         </form>
+        )}
       </DialogContent>
     </Dialog>
   );
