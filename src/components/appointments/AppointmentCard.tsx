@@ -1,13 +1,14 @@
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AppointmentSendDto, appointmentsApi, patientsApi, physiciansApi } from "@/lib/api";
-import { Calendar, Clock, MapPin, User, Stethoscope, Pencil, Trash2, FileText } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { AppointmentSendDto, appointmentsApi, MedicationDto } from "@/lib/api";
+import { Calendar, Clock, MapPin, User, Stethoscope, Pencil, Trash2, FileText, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { EditAppointmentDialog } from "./EditAppointmentDialog";
 import { DeleteConfirmDialog } from "@/components/common/DeleteConfirmDialog";
 import { AddReportDialog } from "./AddReportDialog";
+import { ViewReportDialog } from "./ViewReportDialog";
 import { toast } from "sonner";
 
 interface AppointmentCardProps {
@@ -19,23 +20,12 @@ export function AppointmentCard({ appointment, onClick }: AppointmentCardProps) 
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [viewReportOpen, setViewReportOpen] = useState(false);
+  const [existingPdf, setExistingPdf] = useState<string | null>(null);
+  const [existingMedications, setExistingMedications] = useState<MedicationDto[]>([]);
+  const [isCheckingReport, setIsCheckingReport] = useState(false);
   const queryClient = useQueryClient();
   const formattedDate = format(parseISO(appointment.appointmentDate), "MMM d, yyyy");
-
-  // Fetch patients and physicians to get IDs by name
-  const { data: patients = [] } = useQuery({
-    queryKey: ["patients"],
-    queryFn: patientsApi.getAll,
-  });
-
-  const { data: physicians = [] } = useQuery({
-    queryKey: ["physicians"],
-    queryFn: physiciansApi.getAll,
-  });
-
-  // Look up IDs by name from the appointment
-  const patientId = patients.find(p => p.name === appointment.patientName)?.id ?? 0;
-  const physicianId = physicians.find(p => p.name === appointment.physicianName)?.id ?? 0;
 
   const deleteMutation = useMutation({
     mutationFn: () => appointmentsApi.delete(appointment.id),
@@ -48,6 +38,28 @@ export function AppointmentCard({ appointment, onClick }: AppointmentCardProps) 
       toast.error("Failed to delete appointment");
     },
   });
+
+  const handleReportClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsCheckingReport(true);
+    
+    try {
+      const appointmentDetails = await appointmentsApi.getById(appointment.id);
+      
+      if (appointmentDetails.pdfBase64) {
+        setExistingPdf(appointmentDetails.pdfBase64);
+        setExistingMedications(appointmentDetails.medications || []);
+        setViewReportOpen(true);
+      } else {
+        setReportOpen(true);
+      }
+    } catch (error) {
+      toast.error("Failed to check for existing report");
+      setReportOpen(true);
+    } finally {
+      setIsCheckingReport(false);
+    }
+  };
   
   return (
     <>
@@ -71,10 +83,15 @@ export function AppointmentCard({ appointment, onClick }: AppointmentCardProps) 
               variant="ghost"
               size="icon"
               className="h-7 w-7 text-primary hover:text-primary"
-              onClick={(e) => { e.stopPropagation(); setReportOpen(true); }}
-              title="Add Report"
+              onClick={handleReportClick}
+              disabled={isCheckingReport}
+              title="View/Add Report"
             >
-              <FileText className="w-3.5 h-3.5" />
+              {isCheckingReport ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <FileText className="w-3.5 h-3.5" />
+              )}
             </Button>
             <Button
               variant="ghost"
@@ -142,8 +159,15 @@ export function AppointmentCard({ appointment, onClick }: AppointmentCardProps) 
         open={reportOpen}
         onOpenChange={setReportOpen}
         appointmentId={appointment.id}
-        patientId={patientId}
-        physicianId={physicianId}
+        patientId={appointment.patientId}
+        physicianId={appointment.physicianId}
+      />
+      <ViewReportDialog
+        open={viewReportOpen}
+        onOpenChange={setViewReportOpen}
+        appointmentId={appointment.id}
+        pdfBase64={existingPdf || ""}
+        medications={existingMedications}
       />
     </>
   );
