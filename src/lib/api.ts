@@ -40,8 +40,24 @@ export interface PhysicianSendDto {
   image?: string;
 }
 
+export interface PhysicianCreateDto {
+  name: string;
+  clinicalAddress: string;
+  specializationId: number;
+  image?: string;
+}
+
 export interface PatientSendDto {
   id: number;
+  name: string;
+  phone: string;
+  address: string;
+  city: string;
+  gender: string;
+  image?: string;
+}
+
+export interface PatientCreateDto {
   name: string;
   phone: string;
   address: string;
@@ -91,6 +107,15 @@ export const physiciansApi = {
     if (!res.ok) throw new Error("Failed to fetch physician");
     return res.json();
   },
+
+  create: async (data: PhysicianCreateDto): Promise<void> => {
+    const res = await fetch(`${BASE_URL}/physician/AddPhysician`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error("Failed to add physician");
+  },
 };
 
 export const patientsApi = {
@@ -104,6 +129,15 @@ export const patientsApi = {
     const res = await fetch(`${BASE_URL}/patient/GetPatient/${id}`);
     if (!res.ok) throw new Error("Failed to fetch patient");
     return res.json();
+  },
+
+  create: async (data: PatientCreateDto): Promise<void> => {
+    const res = await fetch(`${BASE_URL}/patient/AddPatient`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error("Failed to add patient");
   },
 };
 
