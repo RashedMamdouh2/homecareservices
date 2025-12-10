@@ -24,6 +24,8 @@ export function AppointmentCard({ appointment, onClick }: AppointmentCardProps) 
   const [existingPdf, setExistingPdf] = useState<string | null>(null);
   const [existingMedications, setExistingMedications] = useState<MedicationDto[]>([]);
   const [isCheckingReport, setIsCheckingReport] = useState(false);
+  const [reportPatientId, setReportPatientId] = useState<number>(0);
+  const [reportPhysicianId, setReportPhysicianId] = useState<number>(0);
   const queryClient = useQueryClient();
   const formattedDate = format(parseISO(appointment.appointmentDate), "MMM d, yyyy");
 
@@ -46,6 +48,10 @@ export function AppointmentCard({ appointment, onClick }: AppointmentCardProps) 
     try {
       const appointmentDetails = await appointmentsApi.getById(appointment.id);
       
+      // Store the IDs from the fetched appointment details
+      setReportPatientId(appointmentDetails.patientId);
+      setReportPhysicianId(appointmentDetails.physicianId);
+      
       if (appointmentDetails.pdfBase64) {
         setExistingPdf(appointmentDetails.pdfBase64);
         setExistingMedications(appointmentDetails.medications || []);
@@ -55,7 +61,6 @@ export function AppointmentCard({ appointment, onClick }: AppointmentCardProps) 
       }
     } catch (error) {
       toast.error("Failed to check for existing report");
-      setReportOpen(true);
     } finally {
       setIsCheckingReport(false);
     }
@@ -159,8 +164,8 @@ export function AppointmentCard({ appointment, onClick }: AppointmentCardProps) 
         open={reportOpen}
         onOpenChange={setReportOpen}
         appointmentId={appointment.id}
-        patientId={appointment.patientId}
-        physicianId={appointment.physicianId}
+        patientId={reportPatientId}
+        physicianId={reportPhysicianId}
       />
       <ViewReportDialog
         open={viewReportOpen}
