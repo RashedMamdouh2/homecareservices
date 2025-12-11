@@ -78,17 +78,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { success: false, error: errorText || 'Login failed' };
       }
 
-      const data = await response.json();
+      // Response is a direct JWT token string
+      const token = await response.text();
       
       // Parse JWT to get user info
-      const tokenPayload = parseJwt(data.token || data);
+      const tokenPayload = parseJwt(token);
       
+      // .NET uses full URI claim types
       const userData: User = {
-        id: tokenPayload.id || tokenPayload.sub,
-        name: tokenPayload.name || tokenPayload.unique_name || username,
-        email: tokenPayload.email || '',
-        role: tokenPayload.role || 'patient',
-        token: data.token || data,
+        id: tokenPayload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'] || '',
+        name: tokenPayload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'] || username,
+        email: '',
+        role: tokenPayload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || 'patient',
+        token: token,
       };
 
       setUser(userData);
