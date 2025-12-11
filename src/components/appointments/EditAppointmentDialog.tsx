@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { appointmentsApi, patientsApi, physiciansApi, AppointmentSendDto } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,6 +32,7 @@ export function EditAppointmentDialog({
   open,
   onOpenChange,
 }: EditAppointmentDialogProps) {
+  const { user, isPatient } = useAuth();
   const [appointmentDate, setAppointmentDate] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
@@ -43,6 +45,7 @@ export function EditAppointmentDialog({
   const { data: patients } = useQuery({
     queryKey: ["patients"],
     queryFn: patientsApi.getAll,
+    enabled: !isPatient, // Only fetch patients list if not a patient
   });
 
   const { data: physicians } = useQuery({
@@ -51,19 +54,26 @@ export function EditAppointmentDialog({
   });
 
   useEffect(() => {
-    if (appointment && patients && physicians) {
+    if (appointment && physicians) {
       setAppointmentDate(appointment.appointmentDate.split("T")[0]);
       setStartTime(appointment.startTime);
       setEndTime(appointment.endTime);
       setMeetingAddress(appointment.meetingAddress);
       setPhysicianNotes(appointment.physicianNotes || "");
       
-      const patient = patients.find(p => p.name === appointment.patientName);
+      // For patients, use their own patientId from auth
+      if (isPatient && user?.patientId) {
+        setPatientId(user.patientId.toString());
+      } else if (patients) {
+        const patient = patients.find(p => p.name === appointment.patientName);
+        setPatientId(patient?.id.toString() || "");
+      }
+      
+      // Lookup physician by name
       const physician = physicians.find(p => p.name === appointment.physicianName);
-      setPatientId(patient?.id.toString() || "");
       setPhysicianId(physician?.id.toString() || "");
     }
-  }, [appointment, patients, physicians]);
+  }, [appointment, patients, physicians, isPatient, user]);
 
   const mutation = useMutation({
     mutationFn: (data: {
@@ -123,17 +133,24 @@ export function EditAppointmentDialog({
               <Input id="edit-apt-end" type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
             </div>
           </div>
-          <div className="space-y-2">
-            <Label>Patient *</Label>
-            <Select value={patientId} onValueChange={setPatientId}>
-              <SelectTrigger><SelectValue placeholder="Select patient" /></SelectTrigger>
-              <SelectContent>
-                {patients?.map((p) => (
-                  <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {isPatient ? (
+            <div className="space-y-2">
+              <Label>Patient</Label>
+              <Input value={appointment?.patientName || ""} disabled className="bg-muted" />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label>Patient *</Label>
+              <Select value={patientId} onValueChange={setPatientId}>
+                <SelectTrigger><SelectValue placeholder="Select patient" /></SelectTrigger>
+                <SelectContent>
+                  {patients?.map((p) => (
+                    <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="space-y-2">
             <Label>Physician *</Label>
             <Select value={physicianId} onValueChange={setPhysicianId}>
