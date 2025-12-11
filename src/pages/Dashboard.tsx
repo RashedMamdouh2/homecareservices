@@ -119,11 +119,13 @@ export default function Dashboard() {
           <EmptyState
             icon={Calendar}
             title="No appointments yet"
-            description="Start by booking your first homecare appointment."
+            description={isPhysician ? "You don't have any scheduled appointments yet." : "Start by booking your first homecare appointment."}
             action={
-              <Link to="/appointments">
-                <Button>Book Appointment</Button>
-              </Link>
+              !isPhysician && (
+                <Link to="/appointments">
+                  <Button>Book Appointment</Button>
+                </Link>
+              )
             }
           />
         )}
@@ -132,14 +134,16 @@ export default function Dashboard() {
       {/* Quick Actions */}
       <section className="bg-card rounded-2xl p-6 border border-border shadow-card">
         <h2 className="text-xl font-semibold text-foreground mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Link to="/appointments" className="block">
-            <div className="p-4 rounded-xl bg-accent hover:bg-accent/80 transition-colors group">
-              <Calendar className="w-6 h-6 text-primary mb-2 group-hover:scale-110 transition-transform" />
-              <h3 className="font-medium text-accent-foreground">New Appointment</h3>
-              <p className="text-sm text-muted-foreground">Schedule a home visit</p>
-            </div>
-          </Link>
+        <div className={`grid grid-cols-1 ${isPhysician ? 'sm:grid-cols-2' : 'sm:grid-cols-3'} gap-4`}>
+          {!isPhysician && (
+            <Link to="/appointments" className="block">
+              <div className="p-4 rounded-xl bg-accent hover:bg-accent/80 transition-colors group">
+                <Calendar className="w-6 h-6 text-primary mb-2 group-hover:scale-110 transition-transform" />
+                <h3 className="font-medium text-accent-foreground">New Appointment</h3>
+                <p className="text-sm text-muted-foreground">Schedule a home visit</p>
+              </div>
+            </Link>
+          )}
           <Link to="/physicians" className="block">
             <div className="p-4 rounded-xl bg-secondary hover:bg-secondary/80 transition-colors group">
               <Stethoscope className="w-6 h-6 text-secondary-foreground mb-2 group-hover:scale-110 transition-transform" />
