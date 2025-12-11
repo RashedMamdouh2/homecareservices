@@ -83,10 +83,10 @@ export function BookAppointmentDialog({
 
   // Auto-select patient if logged in as patient
   useEffect(() => {
-    if (isPatient && user?.patientId) {
+    if (open && isPatient && user?.patientId) {
       setSelectedPatientId(user.patientId.toString());
     }
-  }, [isPatient, user?.patientId]);
+  }, [open, isPatient, user?.patientId]);
 
   // Fetch specializations
   const { data: specializations, isLoading: loadingSpecs } = useQuery({
