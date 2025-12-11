@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, getDaysInMonth, startOfMonth, getDay } from "date-fns";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Dialog,
   DialogContent,
@@ -66,6 +67,7 @@ export function BookAppointmentDialog({
   onOpenChange,
 }: BookAppointmentDialogProps) {
   const queryClient = useQueryClient();
+  const { user, isPatient, isAdmin } = useAuth();
   const [step, setStep] = useState<BookingStep>("specialization");
   const [selectedSpecialization, setSelectedSpecialization] =
     useState<SpecializationDto | null>(null);
@@ -78,6 +80,13 @@ export function BookAppointmentDialog({
   const [selectedPatientId, setSelectedPatientId] = useState<string>("");
   const [meetingAddress, setMeetingAddress] = useState("");
   const [physicianNotes, setPhysicianNotes] = useState("");
+
+  // Auto-select patient if logged in as patient
+  useEffect(() => {
+    if (isPatient && user?.patientId) {
+      setSelectedPatientId(user.patientId.toString());
+    }
+  }, [isPatient, user?.patientId]);
 
   // Fetch specializations
   const { data: specializations, isLoading: loadingSpecs } = useQuery({
@@ -93,11 +102,11 @@ export function BookAppointmentDialog({
     enabled: !!selectedSpecialization,
   });
 
-  // Fetch patients for selection
+  // Fetch patients for selection (only for admin)
   const { data: patients } = useQuery({
     queryKey: ["patients"],
     queryFn: patientsApi.getAll,
-    enabled: step === "details",
+    enabled: step === "details" && isAdmin,
   });
 
   // Book appointment mutation
@@ -490,21 +499,35 @@ export function BookAppointmentDialog({
       </div>
 
       <div className="space-y-3">
-        <div className="space-y-2">
-          <Label htmlFor="patient">Patient *</Label>
-          <Select value={selectedPatientId} onValueChange={setSelectedPatientId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select a patient" />
-            </SelectTrigger>
-            <SelectContent>
-              {patients?.map((patient) => (
-                <SelectItem key={patient.id} value={patient.id.toString()}>
-                  {patient.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {/* Only show patient selection for admin */}
+        {isAdmin && (
+          <div className="space-y-2">
+            <Label htmlFor="patient">Patient *</Label>
+            <Select value={selectedPatientId} onValueChange={setSelectedPatientId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a patient" />
+              </SelectTrigger>
+              <SelectContent>
+                {patients?.map((patient) => (
+                  <SelectItem key={patient.id} value={patient.id.toString()}>
+                    {patient.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        
+        {/* Show patient name for patients (read-only) */}
+        {isPatient && (
+          <div className="space-y-2">
+            <Label>Patient</Label>
+            <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
+              <User className="w-4 h-4 text-muted-foreground" />
+              <span className="font-medium">{user?.name}</span>
+            </div>
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label htmlFor="address" className="flex items-center gap-2">
