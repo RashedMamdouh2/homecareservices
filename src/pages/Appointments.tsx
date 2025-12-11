@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { appointmentsApi } from "@/lib/api";
+import { appointmentsApi, physiciansApi } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { PageHeader } from "@/components/common/PageHeader";
 import { AppointmentCard } from "@/components/appointments/AppointmentCard";
@@ -14,20 +14,42 @@ import { BookAppointmentDialog } from "@/components/appointments/BookAppointment
 export default function Appointments() {
   const [search, setSearch] = useState("");
   const [bookingOpen, setBookingOpen] = useState(false);
+  const [resolvedPhysicianId, setResolvedPhysicianId] = useState<number | undefined>(undefined);
   const { user, isPatient, isPhysician, isAdmin } = useAuth();
 
+  // If physician doesn't have ID in token, look it up by name
+  const { data: allPhysicians } = useQuery({
+    queryKey: ["physicians-for-lookup"],
+    queryFn: physiciansApi.getAll,
+    enabled: isPhysician && !user?.physicianId && !!user?.physicianName,
+  });
+
+  useEffect(() => {
+    if (isPhysician && !user?.physicianId && user?.physicianName && allPhysicians) {
+      const found = allPhysicians.find(p => p.name === user.physicianName);
+      if (found) {
+        setResolvedPhysicianId(found.id);
+      }
+    } else if (user?.physicianId) {
+      setResolvedPhysicianId(user.physicianId);
+    }
+  }, [isPhysician, user?.physicianId, user?.physicianName, allPhysicians]);
+
+  const physicianIdToUse = user?.physicianId || resolvedPhysicianId;
+
   const { data: appointments, isLoading } = useQuery({
-    queryKey: ["appointments", user?.patientId, user?.physicianId],
+    queryKey: ["appointments", user?.patientId, physicianIdToUse],
     queryFn: async () => {
       if (isPatient && user?.patientId) {
         return appointmentsApi.getByPatient(user.patientId);
-      } else if (isPhysician && user?.physicianId) {
-        return appointmentsApi.getByPhysician(user.physicianId);
+      } else if (isPhysician && physicianIdToUse) {
+        return appointmentsApi.getByPhysician(physicianIdToUse);
       } else if (isAdmin) {
         return appointmentsApi.getAll();
       }
       return [];
     },
+    enabled: !isPhysician || !!physicianIdToUse,
   });
 
   if (isLoading) {

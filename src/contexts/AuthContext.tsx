@@ -8,6 +8,7 @@ interface User {
   token: string;
   patientId?: number;
   physicianId?: number;
+  physicianName?: string;
 }
 
 interface AuthContextType {
@@ -94,8 +95,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         email: '',
         role: role,
         token: token,
-        patientId: role === 'patient' ? Number(tokenPayload['PatientId']) : undefined,
-        physicianId: role === 'physician' ? Number(tokenPayload['PhysicianId']) : undefined,
+        patientId: role === 'patient' && tokenPayload['PatientId'] ? Number(tokenPayload['PatientId']) : undefined,
+        physicianId: role === 'physician' && tokenPayload['PhysicianId'] ? Number(tokenPayload['PhysicianId']) : undefined,
+        physicianName: role === 'physician' ? tokenPayload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'] : undefined,
       };
 
       setUser(userData);
