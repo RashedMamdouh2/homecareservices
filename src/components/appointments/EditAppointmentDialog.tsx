@@ -54,7 +54,8 @@ export function EditAppointmentDialog({
   });
 
   useEffect(() => {
-    if (appointment && physicians) {
+    if (open && appointment && physicians) {
+      // Reset all form values when dialog opens with new appointment
       setAppointmentDate(appointment.appointmentDate.split("T")[0]);
       setStartTime(appointment.startTime);
       setEndTime(appointment.endTime);
@@ -73,7 +74,7 @@ export function EditAppointmentDialog({
       const physician = physicians.find(p => p.name === appointment.physicianName);
       setPhysicianId(physician?.id.toString() || "");
     }
-  }, [appointment, patients, physicians, isPatient, user]);
+  }, [open, appointment, patients, physicians, isPatient, user]);
 
   const mutation = useMutation({
     mutationFn: (data: {
