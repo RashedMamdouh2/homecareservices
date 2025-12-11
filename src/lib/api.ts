@@ -124,7 +124,7 @@ export const appointmentsApi = {
   },
 
   getByPhysician: async (physicianId: number): Promise<AppointmentSendDto[]> => {
-    const res = await fetch(`${BASE_URL}/Physician/GetPatientAppointments/${physicianId}`, {
+    const res = await fetch(`${BASE_URL}/Physician/GetPhysicianAppointments/${physicianId}`, {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch physician appointments");
