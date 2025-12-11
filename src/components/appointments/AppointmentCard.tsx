@@ -4,6 +4,7 @@ import { AppointmentSendDto, appointmentsApi, MedicationDto, patientsApi, physic
 import { Calendar, Clock, MapPin, User, Stethoscope, Pencil, Trash2, FileText, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { EditAppointmentDialog } from "./EditAppointmentDialog";
 import { DeleteConfirmDialog } from "@/components/common/DeleteConfirmDialog";
@@ -17,6 +18,7 @@ interface AppointmentCardProps {
 }
 
 export function AppointmentCard({ appointment, onClick }: AppointmentCardProps) {
+  const { isPatient } = useAuth();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
@@ -69,8 +71,11 @@ export function AppointmentCard({ appointment, onClick }: AppointmentCardProps) 
         setExistingPdf(appointmentDetails.pdfBase64);
         setExistingMedications(appointmentDetails.medications || []);
         setViewReportOpen(true);
-      } else {
+      } else if (!isPatient) {
+        // Only non-patients (physicians/admins) can add reports
         setReportOpen(true);
+      } else {
+        toast.info("No report available for this appointment yet");
       }
     } catch (error) {
       toast.error("Failed to check for existing report");
