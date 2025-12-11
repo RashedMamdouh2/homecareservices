@@ -11,9 +11,10 @@ import { toast } from "sonner";
 interface PhysicianCardProps {
   physician: PhysicianSendDto;
   onClick?: () => void;
+  showActions?: boolean;
 }
 
-export function PhysicianCard({ physician, onClick }: PhysicianCardProps) {
+export function PhysicianCard({ physician, onClick, showActions = true }: PhysicianCardProps) {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const queryClient = useQueryClient();
@@ -70,36 +71,42 @@ export function PhysicianCard({ physician, onClick }: PhysicianCardProps) {
               <span className="text-sm truncate">{physician.clinicalAddress}</span>
             </div>
           </div>
-          <div className="flex flex-col gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={(e) => { e.stopPropagation(); setEditOpen(true); }}
-            >
-              <Pencil className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-destructive hover:text-destructive"
-              onClick={(e) => { e.stopPropagation(); setDeleteOpen(true); }}
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          </div>
+          {showActions && (
+            <div className="flex flex-col gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={(e) => { e.stopPropagation(); setEditOpen(true); }}
+              >
+                <Pencil className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-destructive hover:text-destructive"
+                onClick={(e) => { e.stopPropagation(); setDeleteOpen(true); }}
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
-      <EditPhysicianDialog physician={physician} open={editOpen} onOpenChange={setEditOpen} />
-      <DeleteConfirmDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        title="Delete Physician"
-        description={`Are you sure you want to delete Dr. ${physician.name}? This action cannot be undone.`}
-        onConfirm={() => deleteMutation.mutate()}
-        isLoading={deleteMutation.isPending}
-      />
+      {showActions && (
+        <>
+          <EditPhysicianDialog physician={physician} open={editOpen} onOpenChange={setEditOpen} />
+          <DeleteConfirmDialog
+            open={deleteOpen}
+            onOpenChange={setDeleteOpen}
+            title="Delete Physician"
+            description={`Are you sure you want to delete Dr. ${physician.name}? This action cannot be undone.`}
+            onConfirm={() => deleteMutation.mutate()}
+            isLoading={deleteMutation.isPending}
+          />
+        </>
+      )}
     </>
   );
 }

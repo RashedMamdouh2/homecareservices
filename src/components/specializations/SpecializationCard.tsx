@@ -12,9 +12,10 @@ interface SpecializationCardProps {
   specialization: SpecializationDto;
   onClick: () => void;
   isSelected?: boolean;
+  showActions?: boolean;
 }
 
-export function SpecializationCard({ specialization, onClick, isSelected }: SpecializationCardProps) {
+export function SpecializationCard({ specialization, onClick, isSelected, showActions = true }: SpecializationCardProps) {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const queryClient = useQueryClient();
@@ -59,22 +60,26 @@ export function SpecializationCard({ specialization, onClick, isSelected }: Spec
               </div>
             </div>
             <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={(e) => { e.stopPropagation(); setEditOpen(true); }}
-              >
-                <Pencil className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-destructive hover:text-destructive"
-                onClick={(e) => { e.stopPropagation(); setDeleteOpen(true); }}
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
+              {showActions && (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={(e) => { e.stopPropagation(); setEditOpen(true); }}
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive hover:text-destructive"
+                    onClick={(e) => { e.stopPropagation(); setDeleteOpen(true); }}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </>
+              )}
               <ChevronRight 
                 className={`w-5 h-5 text-muted-foreground transition-transform cursor-pointer ${
                   isSelected ? "rotate-90 text-primary" : ""
@@ -86,19 +91,23 @@ export function SpecializationCard({ specialization, onClick, isSelected }: Spec
         </CardContent>
       </Card>
 
-      <EditSpecializationDialog 
-        specialization={specialization} 
-        open={editOpen} 
-        onOpenChange={setEditOpen} 
-      />
-      <DeleteConfirmDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        title="Delete Specialization"
-        description={`Are you sure you want to delete "${specialization.name}"? This action cannot be undone.`}
-        onConfirm={() => deleteMutation.mutate()}
-        isLoading={deleteMutation.isPending}
-      />
+      {showActions && (
+        <>
+          <EditSpecializationDialog 
+            specialization={specialization} 
+            open={editOpen} 
+            onOpenChange={setEditOpen} 
+          />
+          <DeleteConfirmDialog
+            open={deleteOpen}
+            onOpenChange={setDeleteOpen}
+            title="Delete Specialization"
+            description={`Are you sure you want to delete "${specialization.name}"? This action cannot be undone.`}
+            onConfirm={() => deleteMutation.mutate()}
+            isLoading={deleteMutation.isPending}
+          />
+        </>
+      )}
     </>
   );
 }
