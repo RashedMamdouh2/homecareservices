@@ -45,12 +45,14 @@ export default function Appointments() {
     <div className="space-y-6">
       <PageHeader
         title="Appointments"
-        description="Manage and schedule homecare visits"
+        description={isPhysician ? "View and manage your scheduled appointments" : "Manage and schedule homecare visits"}
         action={
-          <Button className="gap-2" onClick={() => setBookingOpen(true)}>
-            <Plus className="w-4 h-4" />
-            Book Appointment
-          </Button>
+          !isPhysician && (
+            <Button className="gap-2" onClick={() => setBookingOpen(true)}>
+              <Plus className="w-4 h-4" />
+              Book Appointment
+            </Button>
+          )
         }
       />
 
@@ -85,10 +87,12 @@ export default function Appointments() {
           description={
             search
               ? "Try adjusting your search terms"
-              : "Book your first homecare appointment to get started."
+              : isPhysician 
+                ? "You don't have any scheduled appointments yet."
+                : "Book your first homecare appointment to get started."
           }
           action={
-            !search && (
+            !search && !isPhysician && (
               <Button className="gap-2" onClick={() => setBookingOpen(true)}>
                 <Plus className="w-4 h-4" />
                 Book Appointment
