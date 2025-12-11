@@ -114,6 +114,22 @@ export const appointmentsApi = {
     if (!res.ok) throw new Error("Failed to fetch appointments");
     return res.json();
   },
+
+  getByPatient: async (patientId: number): Promise<AppointmentSendDto[]> => {
+    const res = await fetch(`${BASE_URL}/Patient/GetPatientAppointments/${patientId}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch patient appointments");
+    return res.json();
+  },
+
+  getByPhysician: async (physicianId: number): Promise<AppointmentSendDto[]> => {
+    const res = await fetch(`${BASE_URL}/Physician/GetPhysicianAppointments/${physicianId}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch physician appointments");
+    return res.json();
+  },
   
   getById: async (id: string): Promise<AppointmentSendDto> => {
     const res = await fetch(`${BASE_URL}/appointments/GetAppointment/${id}`, {
