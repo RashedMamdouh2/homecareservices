@@ -40,12 +40,13 @@ export function EditAppointmentDialog({
   const [physicianId, setPhysicianId] = useState<string>("");
   const [meetingAddress, setMeetingAddress] = useState("");
   const [physicianNotes, setPhysicianNotes] = useState("");
+  const [initialized, setInitialized] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: patients } = useQuery({
     queryKey: ["patients"],
     queryFn: patientsApi.getAll,
-    enabled: !isPatient, // Only fetch patients list if not a patient
+    enabled: !isPatient,
   });
 
   const { data: physicians } = useQuery({
@@ -53,9 +54,16 @@ export function EditAppointmentDialog({
     queryFn: physiciansApi.getAll,
   });
 
+  // Reset initialized flag when dialog closes
   useEffect(() => {
-    if (open && appointment && physicians) {
-      // Reset all form values when dialog opens with new appointment
+    if (!open) {
+      setInitialized(false);
+    }
+  }, [open]);
+
+  // Initialize form values only once when dialog opens and data is ready
+  useEffect(() => {
+    if (open && appointment && physicians && !initialized) {
       setAppointmentDate(appointment.appointmentDate.split("T")[0]);
       setStartTime(appointment.startTime);
       setEndTime(appointment.endTime);
@@ -73,8 +81,10 @@ export function EditAppointmentDialog({
       // Lookup physician by name
       const physician = physicians.find(p => p.name === appointment.physicianName);
       setPhysicianId(physician?.id.toString() || "");
+      
+      setInitialized(true);
     }
-  }, [open, appointment, patients, physicians, isPatient, user]);
+  }, [open, appointment, patients, physicians, isPatient, user, initialized]);
 
   const mutation = useMutation({
     mutationFn: (data: {
