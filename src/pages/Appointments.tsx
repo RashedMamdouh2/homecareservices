@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { appointmentsApi } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 import { PageHeader } from "@/components/common/PageHeader";
 import { AppointmentCard } from "@/components/appointments/AppointmentCard";
 import { PageLoader } from "@/components/common/LoadingSpinner";
@@ -13,10 +14,20 @@ import { BookAppointmentDialog } from "@/components/appointments/BookAppointment
 export default function Appointments() {
   const [search, setSearch] = useState("");
   const [bookingOpen, setBookingOpen] = useState(false);
+  const { user, isPatient, isPhysician, isAdmin } = useAuth();
 
   const { data: appointments, isLoading } = useQuery({
-    queryKey: ["appointments"],
-    queryFn: appointmentsApi.getAll,
+    queryKey: ["appointments", user?.patientId, user?.physicianId],
+    queryFn: async () => {
+      if (isPatient && user?.patientId) {
+        return appointmentsApi.getByPatient(user.patientId);
+      } else if (isPhysician && user?.physicianId) {
+        return appointmentsApi.getByPhysician(user.physicianId);
+      } else if (isAdmin) {
+        return appointmentsApi.getAll();
+      }
+      return [];
+    },
   });
 
   if (isLoading) {

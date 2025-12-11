@@ -1,11 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 interface User {
-  id: number;
+  id: string;
   name: string;
   email: string;
   role: 'patient' | 'physician' | 'admin';
   token: string;
+  patientId?: number;
+  physicianId?: number;
 }
 
 interface AuthContextType {
@@ -85,12 +87,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const tokenPayload = parseJwt(token);
       
       // .NET uses full URI claim types
+      const role = tokenPayload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || 'patient';
       const userData: User = {
         id: tokenPayload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'] || '',
         name: tokenPayload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'] || username,
         email: '',
-        role: tokenPayload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || 'patient',
+        role: role,
         token: token,
+        patientId: role === 'patient' ? Number(tokenPayload['PatientId']) : undefined,
+        physicianId: role === 'physician' ? Number(tokenPayload['PhysicianId']) : undefined,
       };
 
       setUser(userData);

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { appointmentsApi, physiciansApi, patientsApi } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 import { PageHeader } from "@/components/common/PageHeader";
 import { StatCard } from "@/components/ui/stat-card";
 import { AppointmentCard } from "@/components/appointments/AppointmentCard";
@@ -10,9 +11,20 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 
 export default function Dashboard() {
+  const { user, isPatient, isPhysician, isAdmin } = useAuth();
+
   const { data: appointments, isLoading: loadingAppointments } = useQuery({
-    queryKey: ["appointments"],
-    queryFn: appointmentsApi.getAll,
+    queryKey: ["appointments", user?.patientId, user?.physicianId],
+    queryFn: async () => {
+      if (isPatient && user?.patientId) {
+        return appointmentsApi.getByPatient(user.patientId);
+      } else if (isPhysician && user?.physicianId) {
+        return appointmentsApi.getByPhysician(user.physicianId);
+      } else if (isAdmin) {
+        return appointmentsApi.getAll();
+      }
+      return [];
+    },
   });
 
   const { data: physicians, isLoading: loadingPhysicians } = useQuery({
@@ -20,12 +32,14 @@ export default function Dashboard() {
     queryFn: physiciansApi.getAll,
   });
 
+  // Only admin can see all patients
   const { data: patients, isLoading: loadingPatients } = useQuery({
     queryKey: ["patients"],
     queryFn: patientsApi.getAll,
+    enabled: isAdmin,
   });
 
-  const isLoading = loadingAppointments || loadingPhysicians || loadingPatients;
+  const isLoading = loadingAppointments || loadingPhysicians || (isAdmin && loadingPatients);
 
   if (isLoading) {
     return <PageLoader />;
@@ -45,9 +59,9 @@ export default function Dashboard() {
       />
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className={`grid grid-cols-1 sm:grid-cols-2 ${isAdmin ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4`}>
         <StatCard
-          title="Total Appointments"
+          title={isPatient ? "My Appointments" : isPhysician ? "My Appointments" : "Total Appointments"}
           value={appointments?.length || 0}
           subtitle="All time bookings"
           icon={Calendar}
@@ -67,13 +81,15 @@ export default function Dashboard() {
           icon={Stethoscope}
           variant="default"
         />
-        <StatCard
-          title="Total Patients"
-          value={patients?.length || 0}
-          subtitle="Registered patients"
-          icon={Users}
-          variant="warning"
-        />
+        {isAdmin && (
+          <StatCard
+            title="Total Patients"
+            value={patients?.length || 0}
+            subtitle="Registered patients"
+            icon={Users}
+            variant="warning"
+          />
+        )}
       </div>
 
       {/* Recent Appointments */}
