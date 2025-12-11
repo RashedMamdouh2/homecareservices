@@ -1,4 +1,12 @@
+import { getAuthToken } from "@/contexts/AuthContext";
+
 const BASE_URL = "https://homecareservice.runasp.net/api";
+
+// Helper to get auth headers
+const getAuthHeaders = (): HeadersInit => {
+  const token = getAuthToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
 
 // Types
 export interface MedicationDto {
@@ -100,13 +108,17 @@ export interface ReportCreateDto {
 
 export const appointmentsApi = {
   getAll: async (): Promise<AppointmentSendDto[]> => {
-    const res = await fetch(`${BASE_URL}/appointments/GetAllAppointments`);
+    const res = await fetch(`${BASE_URL}/appointments/GetAllAppointments`, {
+      headers: getAuthHeaders(),
+    });
     if (!res.ok) throw new Error("Failed to fetch appointments");
     return res.json();
   },
   
   getById: async (id: string): Promise<AppointmentSendDto> => {
-    const res = await fetch(`${BASE_URL}/appointments/GetAppointment/${id}`);
+    const res = await fetch(`${BASE_URL}/appointments/GetAppointment/${id}`, {
+      headers: getAuthHeaders(),
+    });
     if (!res.ok) throw new Error("Failed to fetch appointment");
     return res.json();
   },
@@ -114,7 +126,7 @@ export const appointmentsApi = {
   create: async (data: AppointmentCreateDto): Promise<void> => {
     const res = await fetch(`${BASE_URL}/appointments/BookAppointment`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
       body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error("Failed to book appointment");
@@ -123,7 +135,7 @@ export const appointmentsApi = {
   update: async (id: string, data: AppointmentCreateDto): Promise<void> => {
     const res = await fetch(`${BASE_URL}/appointments/${id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
       body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error("Failed to update appointment");
@@ -132,6 +144,7 @@ export const appointmentsApi = {
   delete: async (id: string): Promise<void> => {
     const res = await fetch(`${BASE_URL}/appointments/${id}`, {
       method: "DELETE",
+      headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error("Failed to delete appointment");
   },
@@ -139,7 +152,7 @@ export const appointmentsApi = {
   addReport: async (appointmentId: string, data: ReportCreateDto): Promise<string> => {
     const res = await fetch(`${BASE_URL}/Appointments/Add/Appointment/Report/${appointmentId}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
       body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error("Failed to add report");
@@ -150,13 +163,17 @@ export const appointmentsApi = {
 
 export const physiciansApi = {
   getAll: async (): Promise<PhysicianSendDto[]> => {
-    const res = await fetch(`${BASE_URL}/physician/GetAllPhysicians`);
+    const res = await fetch(`${BASE_URL}/physician/GetAllPhysicians`, {
+      headers: getAuthHeaders(),
+    });
     if (!res.ok) throw new Error("Failed to fetch physicians");
     return res.json();
   },
   
   getById: async (id: number): Promise<PhysicianSendDto> => {
-    const res = await fetch(`${BASE_URL}/physician/GetPhysician/${id}`);
+    const res = await fetch(`${BASE_URL}/physician/GetPhysician/${id}`, {
+      headers: getAuthHeaders(),
+    });
     if (!res.ok) throw new Error("Failed to fetch physician");
     return res.json();
   },
@@ -170,6 +187,7 @@ export const physiciansApi = {
     
     const res = await fetch(`${BASE_URL}/physician/AddPhysician`, {
       method: "POST",
+      headers: getAuthHeaders(),
       body: formData,
     });
     if (!res.ok) throw new Error("Failed to add physician");
@@ -185,6 +203,7 @@ export const physiciansApi = {
     
     const res = await fetch(`${BASE_URL}/physician/${id}`, {
       method: "PUT",
+      headers: getAuthHeaders(),
       body: formData,
     });
     if (!res.ok) throw new Error("Failed to update physician");
@@ -193,6 +212,7 @@ export const physiciansApi = {
   delete: async (id: number): Promise<void> => {
     const res = await fetch(`${BASE_URL}/physician/${id}`, {
       method: "DELETE",
+      headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error("Failed to delete physician");
   },
@@ -200,13 +220,17 @@ export const physiciansApi = {
 
 export const patientsApi = {
   getAll: async (): Promise<PatientSendDto[]> => {
-    const res = await fetch(`${BASE_URL}/patient/GetAllPatients`);
+    const res = await fetch(`${BASE_URL}/patient/GetAllPatients`, {
+      headers: getAuthHeaders(),
+    });
     if (!res.ok) throw new Error("Failed to fetch patients");
     return res.json();
   },
   
   getById: async (id: number): Promise<PatientSendDto> => {
-    const res = await fetch(`${BASE_URL}/patient/GetPatient/${id}`);
+    const res = await fetch(`${BASE_URL}/patient/GetPatient/${id}`, {
+      headers: getAuthHeaders(),
+    });
     if (!res.ok) throw new Error("Failed to fetch patient");
     return res.json();
   },
@@ -223,6 +247,7 @@ export const patientsApi = {
     
     const res = await fetch(`${BASE_URL}/patient/AddPatient`, {
       method: "POST",
+      headers: getAuthHeaders(),
       body: formData,
     });
     if (!res.ok) throw new Error("Failed to add patient");
@@ -241,6 +266,7 @@ export const patientsApi = {
     
     const res = await fetch(`${BASE_URL}/patient/${id}`, {
       method: "PUT",
+      headers: getAuthHeaders(),
       body: formData,
     });
     if (!res.ok) throw new Error("Failed to update patient");
@@ -249,6 +275,7 @@ export const patientsApi = {
   delete: async (id: number): Promise<void> => {
     const res = await fetch(`${BASE_URL}/patient/${id}`, {
       method: "DELETE",
+      headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error("Failed to delete patient");
   },
@@ -256,13 +283,17 @@ export const patientsApi = {
 
 export const specializationsApi = {
   getAll: async (): Promise<SpecializationDto[]> => {
-    const res = await fetch(`${BASE_URL}/specialization/GetAllSpecializations`);
+    const res = await fetch(`${BASE_URL}/specialization/GetAllSpecializations`, {
+      headers: getAuthHeaders(),
+    });
     if (!res.ok) throw new Error("Failed to fetch specializations");
     return res.json();
   },
 
   getPhysicians: async (specializationId: number): Promise<PhysicianSendDto[]> => {
-    const res = await fetch(`${BASE_URL}/specialization/GetPhysicians/${specializationId}`);
+    const res = await fetch(`${BASE_URL}/specialization/GetPhysicians/${specializationId}`, {
+      headers: getAuthHeaders(),
+    });
     if (!res.ok) throw new Error("Failed to fetch physicians for specialization");
     return res.json();
   },
@@ -270,7 +301,7 @@ export const specializationsApi = {
   create: async (data: SpecializationCreateDto): Promise<void> => {
     const res = await fetch(`${BASE_URL}/specialization/AddSpecialization`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
       body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error("Failed to add specialization");
@@ -279,7 +310,7 @@ export const specializationsApi = {
   update: async (id: number, data: Partial<SpecializationCreateDto>): Promise<void> => {
     const res = await fetch(`${BASE_URL}/specialization/${id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
       body: JSON.stringify({ id, ...data }),
     });
     if (!res.ok) throw new Error("Failed to update specialization");
@@ -288,6 +319,7 @@ export const specializationsApi = {
   delete: async (id: number): Promise<void> => {
     const res = await fetch(`${BASE_URL}/specialization/${id}`, {
       method: "DELETE",
+      headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error("Failed to delete specialization");
   },

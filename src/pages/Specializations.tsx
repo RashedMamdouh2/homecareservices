@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { specializationsApi, PhysicianSendDto } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 import { PageHeader } from "@/components/common/PageHeader";
 import { PageLoader } from "@/components/common/LoadingSpinner";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -14,6 +15,7 @@ import { Button } from "@/components/ui/button";
 export default function Specializations() {
   const [search, setSearch] = useState("");
   const [selectedSpecId, setSelectedSpecId] = useState<number | null>(null);
+  const { isAdmin } = useAuth();
 
   const { data: specializations, isLoading: loadingSpecs } = useQuery({
     queryKey: ["specializations"],
@@ -40,7 +42,7 @@ export default function Specializations() {
       <PageHeader
         title="Specializations"
         description="Browse medical specializations and their physicians"
-        action={<AddSpecializationDialog />}
+        action={isAdmin ? <AddSpecializationDialog /> : undefined}
       />
 
       {/* Search */}
@@ -69,6 +71,7 @@ export default function Specializations() {
                   specialization={spec}
                   onClick={() => setSelectedSpecId(spec.id)}
                   isSelected={selectedSpecId === spec.id}
+                  showActions={isAdmin}
                 />
               ))}
             </div>
@@ -81,7 +84,7 @@ export default function Specializations() {
                   ? "Try adjusting your search terms."
                   : "Add your first specialization to get started."
               }
-              action={!search && <AddSpecializationDialog />}
+              action={!search && isAdmin && <AddSpecializationDialog />}
             />
           )}
         </div>
@@ -111,7 +114,7 @@ export default function Specializations() {
               ) : physicians && physicians.length > 0 ? (
                 <div className="grid gap-4">
                   {physicians.map((physician) => (
-                    <PhysicianCard key={physician.id} physician={physician} />
+                    <PhysicianCard key={physician.id} physician={physician} showActions={false} />
                   ))}
                 </div>
               ) : (

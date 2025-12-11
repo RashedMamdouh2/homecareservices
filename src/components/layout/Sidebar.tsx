@@ -1,4 +1,5 @@
 import { NavLink } from "@/components/NavLink";
+import { useAuth } from "@/contexts/AuthContext";
 import { 
   LayoutDashboard, 
   Calendar, 
@@ -7,21 +8,26 @@ import {
   HeartPulse,
   Menu,
   X,
-  Layers
+  Layers,
+  LogOut,
+  User
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-
-const navItems = [
-  { to: "/", icon: LayoutDashboard, label: "Dashboard" },
-  { to: "/appointments", icon: Calendar, label: "Appointments" },
-  { to: "/specializations", icon: Layers, label: "Specializations" },
-  { to: "/physicians", icon: Stethoscope, label: "Physicians" },
-  { to: "/patients", icon: Users, label: "Patients" },
-];
+import { Button } from "@/components/ui/button";
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
+  const { user, logout, isAdmin } = useAuth();
+
+  // Filter nav items based on role
+  const navItems = [
+    { to: "/", icon: LayoutDashboard, label: "Dashboard", roles: ['admin', 'patient', 'physician'] },
+    { to: "/appointments", icon: Calendar, label: "Appointments", roles: ['admin', 'patient', 'physician'] },
+    { to: "/specializations", icon: Layers, label: "Specializations", roles: ['admin', 'patient', 'physician'] },
+    { to: "/physicians", icon: Stethoscope, label: "Physicians", roles: ['admin'] },
+    { to: "/patients", icon: Users, label: "Patients", roles: ['admin'] },
+  ].filter(item => item.roles.includes(user?.role || ''));
 
   return (
     <>
@@ -55,6 +61,21 @@ export function Sidebar() {
           </div>
         </div>
 
+        {/* User info */}
+        {user && !collapsed && (
+          <div className="px-4 py-3 border-b border-sidebar-border">
+            <div className="flex items-center gap-3 p-2 rounded-lg bg-sidebar-accent/50">
+              <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                <User className="w-4 h-4 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-sidebar-foreground truncate">{user.name}</p>
+                <p className="text-xs text-muted-foreground capitalize">{user.role}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Navigation */}
         <nav className="flex-1 py-6 px-3 space-y-2">
           {navItems.map((item, index) => (
@@ -76,6 +97,21 @@ export function Sidebar() {
             </NavLink>
           ))}
         </nav>
+
+        {/* Logout button */}
+        <div className="px-3 pb-4">
+          <Button
+            variant="ghost"
+            onClick={logout}
+            className={cn(
+              "w-full flex items-center gap-3 px-4 py-3 text-destructive hover:bg-destructive/10 hover:text-destructive",
+              collapsed && "justify-center px-3"
+            )}
+          >
+            <LogOut className="w-5 h-5 flex-shrink-0" />
+            {!collapsed && <span>Logout</span>}
+          </Button>
+        </div>
 
         {/* Collapse button - desktop only */}
         <button
