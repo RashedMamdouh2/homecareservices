@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { appointmentsApi, ReportMedicationDto } from "@/lib/api";
+import { appointmentsApi, ReportMedicationDto, getAssetUrl } from "@/lib/api";
 import {
   Dialog,
   DialogContent,
@@ -47,7 +47,7 @@ export function AddReportDialog({
   const [description, setDescription] = useState("");
   const [medications, setMedications] = useState<MedicationForm[]>([]);
   const [showTimeSelector, setShowTimeSelector] = useState<number | null>(null);
-  const [pdfBase64, setPdfBase64] = useState<string | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
@@ -58,10 +58,11 @@ export function AddReportDialog({
         physicianId,
         medications: medications as ReportMedicationDto[],
       }),
-    onSuccess: (base64Pdf) => {
+    onSuccess: (pdfPath) => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       toast.success("Report added successfully");
-      setPdfBase64(base64Pdf);
+      // pdfPath is now a URL path, not base64
+      setPdfUrl(pdfPath);
     },
     onError: () => {
       toast.error("Failed to add report");
@@ -72,7 +73,7 @@ export function AddReportDialog({
     setDescription("");
     setMedications([]);
     setShowTimeSelector(null);
-    setPdfBase64(null);
+    setPdfUrl(null);
   };
 
   const handleClose = () => {
@@ -81,10 +82,13 @@ export function AddReportDialog({
   };
 
   const downloadPdf = () => {
-    if (!pdfBase64) return;
+    if (!pdfUrl) return;
+    const fullUrl = getAssetUrl(pdfUrl);
+    if (!fullUrl) return;
     const link = document.createElement("a");
-    link.href = `data:application/pdf;base64,${pdfBase64}`;
+    link.href = fullUrl;
     link.download = `report-${appointmentId}.pdf`;
+    link.target = "_blank";
     link.click();
   };
 
@@ -127,15 +131,15 @@ export function AddReportDialog({
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {pdfBase64 ? "Report Generated" : "Add Appointment Report"}
+            {pdfUrl ? "Report Generated" : "Add Appointment Report"}
           </DialogTitle>
         </DialogHeader>
 
-        {pdfBase64 ? (
+        {pdfUrl ? (
           <div className="space-y-4">
             <div className="border border-border rounded-lg overflow-hidden bg-muted/30">
               <iframe
-                src={`data:application/pdf;base64,${pdfBase64}`}
+                src={getAssetUrl(pdfUrl) || ""}
                 className="w-full h-[60vh]"
                 title="Report PDF"
               />

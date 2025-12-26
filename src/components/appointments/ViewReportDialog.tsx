@@ -6,14 +6,14 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { FileDown, X } from "lucide-react";
-import { MedicationDto } from "@/lib/api";
+import { MedicationDto, getAssetUrl } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 
 interface ViewReportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   appointmentId: string;
-  pdfBase64: string;
+  pdfUrl: string;
   medications?: MedicationDto[];
 }
 
@@ -21,13 +21,17 @@ export function ViewReportDialog({
   open,
   onOpenChange,
   appointmentId,
-  pdfBase64,
+  pdfUrl,
   medications = [],
 }: ViewReportDialogProps) {
+  const fullPdfUrl = getAssetUrl(pdfUrl);
+  
   const downloadPdf = () => {
+    if (!fullPdfUrl) return;
     const link = document.createElement("a");
-    link.href = `data:application/pdf;base64,${pdfBase64}`;
+    link.href = fullPdfUrl;
     link.download = `report-${appointmentId}.pdf`;
+    link.target = "_blank";
     link.click();
   };
 
@@ -41,7 +45,7 @@ export function ViewReportDialog({
         <div className="space-y-4">
           <div className="border border-border rounded-lg overflow-hidden bg-muted/30">
             <iframe
-              src={`data:application/pdf;base64,${pdfBase64}`}
+              src={fullPdfUrl || ""}
               className="w-full h-[60vh]"
               title="Report PDF"
             />

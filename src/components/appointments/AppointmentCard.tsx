@@ -68,6 +68,7 @@ export function AppointmentCard({ appointment, onClick }: AppointmentCardProps) 
       if (physician) setReportPhysicianId(physician.id);
       
       if (appointmentDetails.pdfBase64) {
+        // pdfBase64 now contains a URL path, not base64
         setExistingPdf(appointmentDetails.pdfBase64);
         setExistingMedications(appointmentDetails.medications || []);
         setViewReportOpen(true);
@@ -189,7 +190,7 @@ export function AppointmentCard({ appointment, onClick }: AppointmentCardProps) 
         open={viewReportOpen}
         onOpenChange={setViewReportOpen}
         appointmentId={appointment.id}
-        pdfBase64={existingPdf || ""}
+        pdfUrl={existingPdf || ""}
         medications={existingMedications}
       />
     </>

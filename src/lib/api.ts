@@ -1,6 +1,16 @@
 import { getAuthToken } from "@/contexts/AuthContext";
 
 const BASE_URL = "https://homecareservice.runasp.net/api";
+const ASSET_BASE_URL = "https://homecareservice.runasp.net";
+
+// Helper to construct full URL for images and PDFs
+export const getAssetUrl = (path: string | undefined): string | null => {
+  if (!path) return null;
+  // If it's already a full URL, return as is
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  // If it's a relative path, prepend the base URL
+  return `${ASSET_BASE_URL}${path.startsWith("/") ? "" : "/"}${path}`;
+};
 
 // Helper to get auth headers
 const getAuthHeaders = (): HeadersInit => {
