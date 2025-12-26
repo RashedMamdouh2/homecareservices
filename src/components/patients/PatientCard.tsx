@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { PatientSendDto, patientsApi } from "@/lib/api";
+import { PatientSendDto, patientsApi, getAssetUrl } from "@/lib/api";
 import { MapPin, Phone, User, Pencil, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -43,9 +43,9 @@ export function PatientCard({ patient, onClick }: PatientCardProps) {
             onClick={onClick}
             className="w-14 h-14 rounded-full overflow-hidden bg-gradient-to-br from-accent to-primary/20 flex items-center justify-center flex-shrink-0 cursor-pointer"
           >
-            {patient.image ? (
+            {getAssetUrl(patient.image) ? (
               <img
-                src={`data:image/jpeg;base64,${patient.image}`}
+                src={getAssetUrl(patient.image)!}
                 alt={patient.name}
                 className="w-full h-full object-cover"
               />

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { physiciansApi, specializationsApi, PhysicianSendDto } from "@/lib/api";
+import { physiciansApi, specializationsApi, PhysicianSendDto, getAssetUrl } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,7 +36,7 @@ export function EditPhysicianDialog({
   const [specializationId, setSpecializationId] = useState<string>("");
   const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [originalImageBase64, setOriginalImageBase64] = useState<string | null>(null);
+  const [originalImageUrl, setOriginalImageUrl] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const { data: specializations } = useQuery({
@@ -51,36 +51,22 @@ export function EditPhysicianDialog({
       const spec = specializations.find(s => s.name === physician.specializationName);
       setSpecializationId(spec?.id.toString() || "");
       setImage(null);
-      setImagePreview(physician.image ? `data:image/jpeg;base64,${physician.image}` : null);
-      setOriginalImageBase64(physician.image || null);
+      const imageUrl = getAssetUrl(physician.image);
+      setImagePreview(imageUrl);
+      setOriginalImageUrl(imageUrl);
     }
   }, [physician, specializations]);
 
-  // Helper to convert base64 to File for IFormFile binding
-  const base64ToFile = (base64: string, filename: string): File => {
-    // Handle both raw base64 and data URL format
-    let actualBase64 = base64;
-    let mime = 'image/jpeg';
-    
-    if (base64.includes(',')) {
-      const parts = base64.split(',');
-      const mimeMatch = parts[0].match(/:(.*?);/);
-      if (mimeMatch) {
-        mime = mimeMatch[1];
-      }
-      actualBase64 = parts[1];
+  // Helper to fetch image from URL and convert to File
+  const urlToFile = async (url: string, filename: string): Promise<File | null> => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      return new File([blob], filename, { type: blob.type || 'image/jpeg', lastModified: Date.now() });
+    } catch (error) {
+      console.error("Failed to fetch image:", error);
+      return null;
     }
-    
-    const byteString = atob(actualBase64);
-    const arrayBuffer = new ArrayBuffer(byteString.length);
-    const uint8Array = new Uint8Array(arrayBuffer);
-    
-    for (let i = 0; i < byteString.length; i++) {
-      uint8Array[i] = byteString.charCodeAt(i);
-    }
-    
-    const blob = new Blob([uint8Array], { type: mime });
-    return new File([blob], filename, { type: mime, lastModified: Date.now() });
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -106,19 +92,22 @@ export function EditPhysicianDialog({
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !specializationId) {
       toast.error("Please fill in required fields");
       return;
     }
     
-    // Use the new image if selected, otherwise convert original base64 to File
+    // Use the new image if selected, otherwise fetch original from URL
     let imageToSend: File | undefined;
     if (image) {
       imageToSend = image;
-    } else if (originalImageBase64) {
-      imageToSend = base64ToFile(originalImageBase64, "physician-image.jpg");
+    } else if (originalImageUrl) {
+      const fetchedImage = await urlToFile(originalImageUrl, "physician-image.jpg");
+      if (fetchedImage) {
+        imageToSend = fetchedImage;
+      }
     }
     
     if (!imageToSend) {
