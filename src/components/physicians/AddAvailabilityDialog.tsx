@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, forwardRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { physicianScheduleApi } from "@/lib/api";
@@ -21,7 +21,8 @@ interface AddAvailabilityDialogProps {
   physicianId: number;
 }
 
-export function AddAvailabilityDialog({ physicianId }: AddAvailabilityDialogProps) {
+export const AddAvailabilityDialog = forwardRef<HTMLButtonElement, AddAvailabilityDialogProps>(
+  function AddAvailabilityDialog({ physicianId }, ref) {
   const [open, setOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [time, setTime] = useState("09:00");
@@ -85,7 +86,7 @@ export function AddAvailabilityDialog({ physicianId }: AddAvailabilityDialogProp
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
+        <Button ref={ref}>
           <Plus className="w-4 h-4 mr-2" />
           Add Availability
         </Button>
@@ -162,4 +163,4 @@ export function AddAvailabilityDialog({ physicianId }: AddAvailabilityDialogProp
       </DialogContent>
     </Dialog>
   );
-}
+});
