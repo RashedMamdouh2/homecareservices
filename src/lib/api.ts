@@ -58,6 +58,17 @@ export interface PhysicianSendDto {
   clinicalAddress: string;
   specializationName: string;
   image?: string;
+  sessionPrice?: number;
+}
+
+export interface StripePaymentDto {
+  patientUserId: string;
+  customerEmail: string;
+  sessionPrice: number;
+}
+
+export interface StripePaymentResponse {
+  url: string;
 }
 
 export interface PhysicianCreateDto {
@@ -470,5 +481,17 @@ export const physicianScheduleApi = {
       body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error("Failed to add feedback");
+  },
+};
+
+export const stripeApi = {
+  createPaymentSession: async (data: StripePaymentDto): Promise<StripePaymentResponse> => {
+    const res = await fetch(`${BASE_URL}/stripe`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error("Failed to create payment session");
+    return res.json();
   },
 };
