@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AddAvailabilityDialog } from "@/components/physicians/AddAvailabilityDialog";
+import { AddFeedbackDialog } from "@/components/physicians/AddFeedbackDialog";
 import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
 import {
   User,
@@ -138,10 +139,13 @@ export default function PhysicianProfile() {
               <span>{physician.clinicalAddress}</span>
             </div>
             {isPatient && (
-              <Button onClick={() => setBookingOpen(true)}>
-                <CalendarIcon className="w-4 h-4 mr-2" />
-                Book Appointment
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={() => setBookingOpen(true)}>
+                  <CalendarIcon className="w-4 h-4 mr-2" />
+                  Book Appointment
+                </Button>
+                <AddFeedbackDialog physicianId={physicianId!} />
+              </div>
             )}
           </div>
         </div>
@@ -258,12 +262,21 @@ export default function PhysicianProfile() {
                       <span className="font-medium text-sm">
                         {feedback.patientName}
                       </span>
-                      <div className="flex items-center gap-1 ml-auto">
-                        <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                      <div className="flex items-center gap-0.5 ml-auto">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star
+                            key={star}
+                            className={`w-4 h-4 ${
+                              star <= feedback.rate
+                                ? "text-yellow-500 fill-yellow-500"
+                                : "text-muted-foreground/30"
+                            }`}
+                          />
+                        ))}
                       </div>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      {feedback.feedback}
+                      {feedback.description}
                     </p>
                   </div>
                 ))}

@@ -355,11 +355,12 @@ export interface AvailableHoursDto {
   availableSlots: string[];
 }
 
-export interface DiseaseDto {
-  id: number;
-  name: string;
-  description: string;
-  icd: number;
+export interface PatientDiseaseDto {
+  diagnosisDate: string;
+  icd: string;
+  patientId: number;
+  recoverdDate?: string;
+  diseaseName: string;
 }
 
 export interface MedicineDto {
@@ -382,8 +383,23 @@ export interface DiagnosisCreateDto {
   recoverdDate?: string;
 }
 
+export interface PhysicianFeedback {
+  description: string;
+  patientId: number;
+  physicianId: number;
+  patientName: string;
+  rate: number;
+}
+
+export interface FeedbackCreateDto {
+  description: string;
+  rate: number;
+  patientId: number;
+  physicianId: number;
+}
+
 export const patientMedicalApi = {
-  getDiseases: async (patientId: number): Promise<DiseaseDto[]> => {
+  getDiseases: async (patientId: number): Promise<PatientDiseaseDto[]> => {
     const res = await fetch(`${BASE_URL}/patient/disease/${patientId}`, {
       headers: getAuthHeaders(),
     });
@@ -417,18 +433,6 @@ export const patientMedicalApi = {
   },
 };
 
-export interface PhysicianFeedback {
-  patientName: string;
-  feedback: string;
-}
-
-export interface AddAvailabilityDto {
-  physicianId: number;
-  date: string;
-  startTime: string;
-  endTime: string;
-}
-
 export const physicianScheduleApi = {
   getFreeAppointments: async (physicianId: number, date: string): Promise<string[]> => {
     const res = await fetch(`${BASE_URL}/Physician/FreeAppointments/Day/${physicianId}?date=${date}`, {
@@ -438,11 +442,11 @@ export const physicianScheduleApi = {
     return res.json();
   },
 
-  addAvailability: async (data: AddAvailabilityDto): Promise<void> => {
-    const res = await fetch(`${BASE_URL}/Physician/AddAvailability`, {
+  addFreeAppointments: async (physicianId: number, dates: string[]): Promise<void> => {
+    const res = await fetch(`${BASE_URL}/Physician/FreeAppointments/${physicianId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-      body: JSON.stringify(data),
+      body: JSON.stringify(dates),
     });
     if (!res.ok) throw new Error("Failed to add availability");
   },
@@ -453,5 +457,14 @@ export const physicianScheduleApi = {
     });
     if (!res.ok) throw new Error("Failed to fetch feedbacks");
     return res.json();
+  },
+
+  addFeedback: async (physicianId: number, data: FeedbackCreateDto): Promise<void> => {
+    const res = await fetch(`${BASE_URL}/physician/feedbacks/${physicianId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error("Failed to add feedback");
   },
 };

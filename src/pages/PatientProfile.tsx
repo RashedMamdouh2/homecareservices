@@ -17,7 +17,10 @@ import {
   Pill,
   Stethoscope,
   Clock,
+  Calendar,
+  CheckCircle,
 } from "lucide-react";
+import { format } from "date-fns";
 
 export default function PatientProfile() {
   const { id } = useParams<{ id: string }>();
@@ -160,23 +163,30 @@ export default function PatientProfile() {
               </p>
             ) : (
               <div className="space-y-3">
-                {diseases?.map((disease) => (
+                {diseases?.map((disease, index) => (
                   <div
-                    key={disease.id}
+                    key={`${disease.icd}-${index}`}
                     className="p-4 rounded-lg bg-muted/50 border border-border"
                   >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h4 className="font-medium text-card-foreground">
-                          {disease.name}
-                        </h4>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {disease.description}
-                        </p>
-                      </div>
+                    <div className="flex items-start justify-between mb-2">
+                      <h4 className="font-medium text-card-foreground">
+                        {disease.diseaseName}
+                      </h4>
                       <Badge variant="outline" className="text-xs">
                         ICD: {disease.icd}
                       </Badge>
+                    </div>
+                    <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-4 h-4" />
+                        <span>Diagnosed: {format(new Date(disease.diagnosisDate), "MMM d, yyyy")}</span>
+                      </div>
+                      {disease.recoverdDate && (
+                        <div className="flex items-center gap-1 text-green-600">
+                          <CheckCircle className="w-4 h-4" />
+                          <span>Recovered: {format(new Date(disease.recoverdDate), "MMM d, yyyy")}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
