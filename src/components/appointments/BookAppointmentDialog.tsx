@@ -27,6 +27,8 @@ import {
   appointmentsApi,
   patientsApi,
   physicianScheduleApi,
+  physiciansApi,
+  stripeApi,
   PhysicianSendDto,
   SpecializationDto,
 } from "@/lib/api";
@@ -41,10 +43,11 @@ import {
   FileText,
   ChevronLeft,
   ChevronRight,
+  CreditCard,
 } from "lucide-react";
 import { toast } from "sonner";
 
-type BookingStep = "specialization" | "physician" | "datetime" | "details";
+type BookingStep = "specialization" | "physician" | "datetime" | "details" | "payment";
 
 interface BookAppointmentDialogProps {
   open: boolean;
@@ -89,6 +92,13 @@ export function BookAppointmentDialog({
     queryKey: ["physicians-by-spec", selectedSpecialization?.id],
     queryFn: () => specializationsApi.getPhysicians(selectedSpecialization!.id),
     enabled: !!selectedSpecialization,
+  });
+
+  // Fetch full physician details (including sessionPrice)
+  const { data: physicianDetails } = useQuery({
+    queryKey: ["physician-details", selectedPhysician?.id],
+    queryFn: () => physiciansApi.getById(selectedPhysician!.id),
+    enabled: !!selectedPhysician,
   });
 
   // Fetch patients for selection (only for admin)
@@ -156,6 +166,9 @@ export function BookAppointmentDialog({
       case "details":
         setStep("datetime");
         break;
+      case "payment":
+        setStep("details");
+        break;
     }
   };
 
@@ -172,6 +185,50 @@ export function BookAppointmentDialog({
   const handleDateTimeConfirm = () => {
     if (selectedDay && selectedTime) {
       setStep("details");
+    }
+  };
+
+  const handleProceedToPayment = () => {
+    if (!selectedPatientId || !meetingAddress) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+    
+    const sessionPrice = physicianDetails?.sessionPrice || 0;
+    
+    // If session is free, book directly
+    if (sessionPrice <= 0) {
+      handleBookAppointment();
+      return;
+    }
+    
+    // Otherwise, proceed to payment
+    setStep("payment");
+  };
+
+  const handlePayment = async () => {
+    if (!user?.id || !physicianDetails) {
+      toast.error("Missing user or physician information");
+      return;
+    }
+
+    const sessionPrice = physicianDetails.sessionPrice || 0;
+    
+    try {
+      const response = await stripeApi.createPaymentSession({
+        patientUserId: user.id,
+        customerEmail: user.email || "",
+        sessionPrice: sessionPrice,
+      });
+      
+      // Redirect to Stripe checkout
+      if (response.url) {
+        window.location.href = response.url;
+      } else {
+        toast.error("Failed to create payment session");
+      }
+    } catch (error) {
+      toast.error("Failed to process payment. Please try again.");
     }
   };
 
@@ -237,13 +294,20 @@ export function BookAppointmentDialog({
     setSelectedDay(null);
   };
 
+  const sessionPrice = physicianDetails?.sessionPrice || 0;
+  const requiresPayment = sessionPrice > 0;
+
   const renderStepIndicator = () => {
-    const steps = [
+    const baseSteps = [
       { key: "specialization", label: "Specialty", icon: Stethoscope },
       { key: "physician", label: "Doctor", icon: User },
       { key: "datetime", label: "Date & Time", icon: Calendar },
       { key: "details", label: "Details", icon: FileText },
     ];
+    
+    const steps = requiresPayment 
+      ? [...baseSteps, { key: "payment", label: "Payment", icon: CreditCard }]
+      : baseSteps;
 
     const currentIndex = steps.findIndex((s) => s.key === step);
 
@@ -578,16 +642,63 @@ export function BookAppointmentDialog({
       <Button
         className="w-full"
         disabled={!selectedPatientId || !meetingAddress || bookMutation.isPending}
-        onClick={handleBookAppointment}
+        onClick={handleProceedToPayment}
       >
         {bookMutation.isPending ? (
           <>
             <LoadingSpinner className="mr-2" />
             Booking...
           </>
+        ) : requiresPayment ? (
+          `Proceed to Payment ($${sessionPrice.toFixed(2)})`
         ) : (
           "Book Appointment"
         )}
+      </Button>
+    </div>
+  );
+
+  const renderPaymentStep = () => (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <Badge variant="secondary">{selectedPhysician?.name}</Badge>
+        <Badge variant="outline">
+          {format(
+            new Date(selectedYear, selectedMonth, selectedDay!),
+            "MMM d, yyyy"
+          )}
+        </Badge>
+        <Badge variant="outline">
+          {format(new Date(`2024-01-01T${selectedTime}`), "h:mm a")}
+        </Badge>
+      </div>
+
+      <Card className="p-6 bg-muted/50">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+            <CreditCard className="w-8 h-8 text-primary" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold">Complete Your Payment</h3>
+            <p className="text-muted-foreground text-sm mt-1">
+              You will be redirected to Stripe to complete the payment
+            </p>
+          </div>
+          <div className="py-4 border-t border-b border-border">
+            <p className="text-sm text-muted-foreground">Session Price</p>
+            <p className="text-3xl font-bold text-primary">
+              ${sessionPrice.toFixed(2)}
+            </p>
+          </div>
+        </div>
+      </Card>
+
+      <Button
+        className="w-full"
+        onClick={handlePayment}
+      >
+        <CreditCard className="w-4 h-4 mr-2" />
+        Pay Now
       </Button>
     </div>
   );
@@ -612,6 +723,7 @@ export function BookAppointmentDialog({
         {step === "physician" && renderPhysicianStep()}
         {step === "datetime" && renderDateTimeStep()}
         {step === "details" && renderDetailsStep()}
+        {step === "payment" && renderPaymentStep()}
       </DialogContent>
     </Dialog>
   );
