@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { specializationsApi, PhysicianSendDto } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 export default function Specializations() {
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [selectedSpecId, setSelectedSpecId] = useState<number | null>(null);
   const { isAdmin } = useAuth();
@@ -114,7 +116,12 @@ export default function Specializations() {
               ) : physicians && physicians.length > 0 ? (
                 <div className="grid gap-4">
                   {physicians.map((physician) => (
-                    <PhysicianCard key={physician.id} physician={physician} showActions={false} />
+                    <PhysicianCard 
+                      key={physician.id} 
+                      physician={physician} 
+                      showActions={false}
+                      onClick={() => navigate(`/physicians/${physician.id}`)}
+                    />
                   ))}
                 </div>
               ) : (
