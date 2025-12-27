@@ -27,6 +27,8 @@ export function Sidebar() {
     { to: "/specializations", icon: Layers, label: "Specializations", roles: ['admin', 'patient', 'physician'] },
     { to: "/physicians", icon: Stethoscope, label: "Physicians", roles: ['admin'] },
     { to: "/patients", icon: Users, label: "Patients", roles: ['admin'] },
+    { to: "/patient-profile", icon: User, label: "My Profile", roles: ['patient'] },
+    { to: "/physician-profile", icon: User, label: "My Profile", roles: ['physician'] },
   ].filter(item => item.roles.includes(user?.role || ''));
 
   return (

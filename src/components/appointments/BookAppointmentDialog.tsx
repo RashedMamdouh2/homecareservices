@@ -26,6 +26,7 @@ import {
   specializationsApi,
   appointmentsApi,
   patientsApi,
+  physicianScheduleApi,
   PhysicianSendDto,
   SpecializationDto,
 } from "@/lib/api";
@@ -49,18 +50,6 @@ interface BookAppointmentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
-
-// Available time slots (9 AM to 5 PM, hourly)
-const TIME_SLOTS = [
-  "09:00:00",
-  "10:00:00",
-  "11:00:00",
-  "12:00:00",
-  "13:00:00",
-  "14:00:00",
-  "15:00:00",
-  "16:00:00",
-];
 
 export function BookAppointmentDialog({
   open,
@@ -107,6 +96,21 @@ export function BookAppointmentDialog({
     queryKey: ["patients"],
     queryFn: patientsApi.getAll,
     enabled: step === "details" && isAdmin,
+  });
+
+  // Fetch available time slots from physician schedule
+  const selectedDateFormatted = selectedDay
+    ? format(new Date(selectedYear, selectedMonth, selectedDay), "yyyy-MM-dd")
+    : null;
+
+  const { data: availableSlots, isLoading: loadingAvailableSlots } = useQuery({
+    queryKey: ["available-slots", selectedPhysician?.id, selectedDateFormatted],
+    queryFn: () =>
+      physicianScheduleApi.getFreeAppointments(
+        selectedPhysician!.id,
+        selectedDateFormatted!
+      ),
+    enabled: !!selectedPhysician && !!selectedDateFormatted,
   });
 
   // Book appointment mutation
@@ -187,7 +191,11 @@ export function BookAppointmentDialog({
       selectedMonth,
       selectedDay
     ).toISOString();
-    const endTime = TIME_SLOTS[TIME_SLOTS.indexOf(selectedTime) + 1] || "17:00:00";
+    
+    // Calculate end time (1 hour after start time)
+    const [hours, minutes, seconds] = selectedTime.split(":").map(Number);
+    const endHours = (hours + 1).toString().padStart(2, "0");
+    const endTime = `${endHours}:${minutes.toString().padStart(2, "0")}:${(seconds || 0).toString().padStart(2, "0")}`;
 
     bookMutation.mutate({
       appointmentDate,
@@ -451,31 +459,41 @@ export function BookAppointmentDialog({
             <Clock className="w-4 h-4" />
             Available Time Slots
           </Label>
-          <div className="grid grid-cols-4 gap-2">
-            {TIME_SLOTS.map((time) => {
-              const isSelected = selectedTime === time;
-              const displayTime = format(
-                new Date(`2024-01-01T${time}`),
-                "h:mm a"
-              );
-              return (
-                <Button
-                  key={time}
-                  variant={isSelected ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSelectedTime(time)}
-                >
-                  {displayTime}
-                </Button>
-              );
-            })}
-          </div>
+          {loadingAvailableSlots ? (
+            <div className="flex justify-center py-4">
+              <LoadingSpinner />
+            </div>
+          ) : availableSlots?.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No available slots for this date
+            </p>
+          ) : (
+            <div className="grid grid-cols-4 gap-2">
+              {availableSlots?.map((time) => {
+                const isSelected = selectedTime === time;
+                const displayTime = format(
+                  new Date(`2024-01-01T${time}`),
+                  "h:mm a"
+                );
+                return (
+                  <Button
+                    key={time}
+                    variant={isSelected ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedTime(time)}
+                  >
+                    {displayTime}
+                  </Button>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
       <Button
         className="w-full"
-        disabled={!selectedDay || !selectedTime}
+        disabled={!selectedDay || !selectedTime || availableSlots?.length === 0}
         onClick={handleDateTimeConfirm}
       >
         Continue

@@ -354,3 +354,46 @@ export const specializationsApi = {
 export interface AvailableHoursDto {
   availableSlots: string[];
 }
+
+export interface DiseaseDto {
+  id: number;
+  name: string;
+  description: string;
+  icd: number;
+}
+
+export interface MedicineDto {
+  name: string;
+  description: string;
+  doseFrequency: number;
+  dose: number;
+  usageTimes: string[];
+}
+
+export const patientMedicalApi = {
+  getDiseases: async (patientId: number): Promise<DiseaseDto[]> => {
+    const res = await fetch(`${BASE_URL}/patient/disease/${patientId}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch patient diseases");
+    return res.json();
+  },
+
+  getMedicines: async (patientId: number): Promise<MedicineDto[]> => {
+    const res = await fetch(`${BASE_URL}/patient/medicine/${patientId}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch patient medicines");
+    return res.json();
+  },
+};
+
+export const physicianScheduleApi = {
+  getFreeAppointments: async (physicianId: number, date: string): Promise<string[]> => {
+    const res = await fetch(`${BASE_URL}/Physician/FreeAppointments/Day/${physicianId}?date=${date}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch free appointments");
+    return res.json();
+  },
+};

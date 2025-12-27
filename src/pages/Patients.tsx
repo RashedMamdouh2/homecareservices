@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { patientsApi } from "@/lib/api";
 import { PageHeader } from "@/components/common/PageHeader";
 import { PatientCard } from "@/components/patients/PatientCard";
@@ -11,6 +12,7 @@ import { AddPatientDialog } from "@/components/patients/AddPatientDialog";
 
 export default function Patients() {
   const [search, setSearch] = useState("");
+  const navigate = useNavigate();
 
   const { data: patients, isLoading } = useQuery({
     queryKey: ["patients"],
@@ -56,7 +58,10 @@ export default function Patients() {
               className="animate-slide-up"
               style={{ animationDelay: `${index * 50}ms` }}
             >
-              <PatientCard patient={patient} />
+              <PatientCard 
+                patient={patient} 
+                onClick={() => navigate(`/patient-profile/${patient.id}`)}
+              />
             </div>
           ))}
         </div>
