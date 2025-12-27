@@ -11,6 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { AddAvailabilityDialog } from "@/components/physicians/AddAvailabilityDialog";
+import { BookAppointmentDialog } from "@/components/appointments/BookAppointmentDialog";
 import {
   User,
   MapPin,
@@ -18,16 +20,20 @@ import {
   ArrowLeft,
   Calendar as CalendarIcon,
   Clock,
+  MessageSquare,
+  Star,
 } from "lucide-react";
 
 export default function PhysicianProfile() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, isPhysician } = useAuth();
+  const { user, isPhysician, isPatient } = useAuth();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [bookingOpen, setBookingOpen] = useState(false);
 
   // Use current user's physicianId if they're a physician viewing their own profile
   const physicianId = id ? parseInt(id) : user?.physicianId;
+  const isOwnProfile = isPhysician && !id;
 
   const { data: physician, isLoading: loadingPhysician } = useQuery({
     queryKey: ["physician", physicianId],
@@ -43,6 +49,12 @@ export default function PhysicianProfile() {
         format(selectedDate!, "yyyy-MM-dd")
       ),
     enabled: !!physicianId && !!selectedDate,
+  });
+
+  const { data: feedbacks, isLoading: loadingFeedbacks } = useQuery({
+    queryKey: ["physician-feedbacks", physicianId],
+    queryFn: () => physicianScheduleApi.getFeedbacks(physicianId!),
+    enabled: !!physicianId,
   });
 
   if (loadingPhysician) {
@@ -78,16 +90,19 @@ export default function PhysicianProfile() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        {!isPhysician && (
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-        )}
-        <PageHeader
-          title="Physician Profile"
-          description="View physician details and available appointments"
-        />
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          {!isOwnProfile && (
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+          )}
+          <PageHeader
+            title={isOwnProfile ? "My Profile" : "Physician Profile"}
+            description={isOwnProfile ? "Manage your availability and view patient feedback" : "View physician details and book appointments"}
+          />
+        </div>
+        {isOwnProfile && <AddAvailabilityDialog physicianId={physicianId!} />}
       </div>
 
       {/* Physician Info Card */}
@@ -122,79 +137,144 @@ export default function PhysicianProfile() {
               <MapPin className="w-5 h-5 text-primary" />
               <span>{physician.clinicalAddress}</span>
             </div>
+            {isPatient && (
+              <Button onClick={() => setBookingOpen(true)}>
+                <CalendarIcon className="w-4 h-4 mr-2" />
+                Book Appointment
+              </Button>
+            )}
           </div>
         </div>
       </Card>
 
-      {/* Available Appointments Section */}
-      <Card className="p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <CalendarIcon className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h3 className="font-semibold text-card-foreground">
-              Available Appointments
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              {isPhysician ? "Your schedule availability" : "Select a date to view available times"}
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Calendar */}
-          <div className="flex justify-center">
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={setSelectedDate}
-              disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-              className="rounded-md border"
-            />
-          </div>
-
-          {/* Time Slots */}
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <Clock className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">
-                {selectedDate
-                  ? `Available times for ${format(selectedDate, "MMM d, yyyy")}`
-                  : "Select a date"}
-              </span>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Available Appointments Section */}
+        <Card className="p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <CalendarIcon className="w-5 h-5 text-primary" />
             </div>
-            <ScrollArea className="h-[250px]">
-              {loadingSlots ? (
-                <div className="flex justify-center py-8">
-                  <LoadingSpinner />
-                </div>
-              ) : !selectedDate ? (
-                <p className="text-muted-foreground text-center py-8">
-                  Please select a date
-                </p>
-              ) : freeSlots?.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">
-                  No available slots for this date
-                </p>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {freeSlots?.map((time, index) => (
-                    <div
-                      key={index}
-                      className="p-3 rounded-lg bg-primary/5 border border-primary/20 text-center"
-                    >
-                      <span className="text-sm font-medium text-primary">
-                        {formatTime(time)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </ScrollArea>
+            <div>
+              <h3 className="font-semibold text-card-foreground">
+                Available Appointments
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {isOwnProfile ? "Your schedule availability" : "Select a date to view available times"}
+              </p>
+            </div>
           </div>
-        </div>
-      </Card>
+
+          <div className="space-y-4">
+            {/* Calendar */}
+            <div className="flex justify-center">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={setSelectedDate}
+                disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                className="rounded-md border"
+              />
+            </div>
+
+            {/* Time Slots */}
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <Clock className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">
+                  {selectedDate
+                    ? `Available times for ${format(selectedDate, "MMM d, yyyy")}`
+                    : "Select a date"}
+                </span>
+              </div>
+              <ScrollArea className="h-[150px]">
+                {loadingSlots ? (
+                  <div className="flex justify-center py-8">
+                    <LoadingSpinner />
+                  </div>
+                ) : !selectedDate ? (
+                  <p className="text-muted-foreground text-center py-8">
+                    Please select a date
+                  </p>
+                ) : freeSlots?.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">
+                    No available slots for this date
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2">
+                    {freeSlots?.map((time, index) => (
+                      <div
+                        key={index}
+                        className="p-3 rounded-lg bg-primary/5 border border-primary/20 text-center"
+                      >
+                        <span className="text-sm font-medium text-primary">
+                          {formatTime(time)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+            </div>
+          </div>
+        </Card>
+
+        {/* Patient Feedbacks Section */}
+        <Card className="p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <MessageSquare className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-card-foreground">
+                Patient Feedback
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {feedbacks?.length || 0} reviews from patients
+              </p>
+            </div>
+          </div>
+
+          <ScrollArea className="h-[350px]">
+            {loadingFeedbacks ? (
+              <div className="flex justify-center py-8">
+                <LoadingSpinner />
+              </div>
+            ) : feedbacks?.length === 0 ? (
+              <div className="text-center py-8">
+                <MessageSquare className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+                <p className="text-muted-foreground">No feedback yet</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {feedbacks?.map((feedback, index) => (
+                  <div
+                    key={index}
+                    className="p-4 rounded-lg bg-muted/50 border border-border"
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                        <User className="w-4 h-4 text-primary" />
+                      </div>
+                      <span className="font-medium text-sm">
+                        {feedback.patientName}
+                      </span>
+                      <div className="flex items-center gap-1 ml-auto">
+                        <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                      </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {feedback.feedback}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+        </Card>
+      </div>
+
+      {/* Booking Dialog */}
+      <BookAppointmentDialog open={bookingOpen} onOpenChange={setBookingOpen} />
     </div>
   );
 }
