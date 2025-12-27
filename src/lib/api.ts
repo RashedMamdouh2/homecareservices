@@ -455,7 +455,11 @@ export const physicianScheduleApi = {
     const res = await fetch(`${BASE_URL}/physician/feedbacks/${physicianId}`, {
       headers: getAuthHeaders(),
     });
-    if (!res.ok) throw new Error("Failed to fetch feedbacks");
+    if (!res.ok) {
+      // Return empty array on error to prevent UI breaking
+      console.error("Failed to fetch feedbacks, status:", res.status);
+      return [];
+    }
     return res.json();
   },
 
