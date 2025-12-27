@@ -18,9 +18,10 @@ import { toast } from "sonner";
 interface DicomUploadFormProps {
   onUpload: (data: DicomUploadRequest) => void;
   isUploading: boolean;
+  onFileSelect?: (file: File | null) => void;
 }
 
-export function DicomUploadForm({ onUpload, isUploading }: DicomUploadFormProps) {
+export function DicomUploadForm({ onUpload, isUploading, onFileSelect }: DicomUploadFormProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [patientId, setPatientId] = useState<string>("");
   const [physicianId, setPhysicianId] = useState<string>("");
@@ -51,6 +52,7 @@ export function DicomUploadForm({ onUpload, isUploading }: DicomUploadFormProps)
     }
 
     setSelectedFile(dicomFile);
+    onFileSelect?.(dicomFile);
   };
 
   const handleSubmit = () => {
