@@ -486,10 +486,6 @@ export const physicianScheduleApi = {
   },
 };
 
-    if (!res.ok) throw new Error("Failed to add feedback");
-  },
-};
-
 // Payment and Billing API
 export interface InvoiceDto {
   Id: number;
@@ -726,9 +722,6 @@ export const analyticsApi = {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch patient demographics");
-=======
-    if (!res.ok) throw new Error("Failed to create payment session");
->>>>>>> 8e3dd132ce188140c0c190d5235574c8f9681e7a
     return res.json();
   },
 };
