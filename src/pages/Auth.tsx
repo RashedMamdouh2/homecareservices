@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { specializationsApi } from "@/lib/api";
-import { Heart, User, Stethoscope, Mail, Lock, Phone, MapPin, Building } from "lucide-react";
+import { Heart, User, Stethoscope, Mail, Lock, Phone, MapPin, Building, DollarSign } from "lucide-react";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -33,7 +33,7 @@ const Auth = () => {
   // Physician signup form
   const [physicianData, setPhysicianData] = useState<PhysicianSignupData>({
     name: "", specializationId: 0, clinicalAddress: "",
-    email: "", password: "", phone: "", userName: "", image: null
+    email: "", password: "", phone: "", userName: "", image: null, sessionPrice: 0
   });
 
   const { data: specializations = [] } = useQuery({
@@ -439,6 +439,22 @@ const Auth = () => {
                         value={physicianData.clinicalAddress}
                         onChange={(e) => setPhysicianData(prev => ({ ...prev, clinicalAddress: e.target.value }))}
                         required
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Session Price ($)</Label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="50.00"
+                        className="pl-10"
+                        value={physicianData.sessionPrice || ""}
+                        onChange={(e) => setPhysicianData(prev => ({ ...prev, sessionPrice: parseFloat(e.target.value) || 0 }))}
                       />
                     </div>
                   </div>
