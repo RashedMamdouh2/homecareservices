@@ -472,3 +472,221 @@ export const physicianScheduleApi = {
     if (!res.ok) throw new Error("Failed to add feedback");
   },
 };
+
+// Payment and Billing API
+export interface InvoiceDto {
+  id: number;
+  date: string;
+  amount: number;
+  status: 'paid' | 'unpaid' | 'pending';
+  description: string;
+  patientId?: number;
+  patientName?: string;
+}
+
+export interface PaymentIntentDto {
+  clientSecret: string;
+  paymentIntentId: string;
+  amount: number;
+  currency: string;
+}
+
+export interface PaymentConfirmationDto {
+  paymentIntentId: string;
+  status: string;
+  amount: number;
+}
+
+export const paymentApi = {
+  // Get invoices for current user
+  getInvoices: async (): Promise<InvoiceDto[]> => {
+    const res = await fetch(`${BASE_URL}/payments/invoices`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch invoices");
+    return res.json();
+  },
+
+  // Create payment intent for an invoice
+  createPaymentIntent: async (invoiceId: number): Promise<PaymentIntentDto> => {
+    const res = await fetch(`${BASE_URL}/payments/create-intent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify({ invoiceId }),
+    });
+    if (!res.ok) throw new Error("Failed to create payment intent");
+    return res.json();
+  },
+
+  // Confirm payment after successful Stripe processing
+  confirmPayment: async (data: PaymentConfirmationDto): Promise<void> => {
+    const res = await fetch(`${BASE_URL}/payments/confirm`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error("Failed to confirm payment");
+  },
+
+  // Generate bill (admin only)
+  generateBill: async (data: {
+    patientId: number;
+    amount: number;
+    description: string;
+    dueDate?: string;
+  }): Promise<InvoiceDto> => {
+    const res = await fetch(`${BASE_URL}/payments/generate-bill`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error("Failed to generate bill");
+    return res.json();
+  },
+
+  // Get payment history
+  getPaymentHistory: async (): Promise<any[]> => {
+    const res = await fetch(`${BASE_URL}/payments/history`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch payment history");
+    return res.json();
+  },
+};
+
+// DICOM and Medical Imaging API
+export interface DicomAnalysisResult {
+  id: string;
+  fileName: string;
+  findings: string;
+  confidence: number;
+  recommendations: string;
+  analyzedAt: string;
+  physicianId?: number;
+  patientId?: number;
+}
+
+export interface DicomUploadResponse {
+  id: string;
+  fileName: string;
+  fileUrl: string;
+  uploadedAt: string;
+}
+
+export const dicomApi = {
+  // Upload DICOM file
+  uploadDicom: async (file: File): Promise<DicomUploadResponse> => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const res = await fetch(`${BASE_URL}/dicom/upload`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: formData,
+    });
+    if (!res.ok) throw new Error("Failed to upload DICOM file");
+    return res.json();
+  },
+
+  // Analyze DICOM file with AI/CDSS
+  analyzeDicom: async (dicomId: string): Promise<DicomAnalysisResult> => {
+    const res = await fetch(`${BASE_URL}/dicom/analyze/${dicomId}`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to analyze DICOM file");
+    return res.json();
+  },
+
+  // Get analysis history
+  getAnalyses: async (): Promise<DicomAnalysisResult[]> => {
+    const res = await fetch(`${BASE_URL}/dicom/analyses`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch analyses");
+    return res.json();
+  },
+
+  // Get DICOM files for patient
+  getPatientDicoms: async (patientId: number): Promise<DicomUploadResponse[]> => {
+    const res = await fetch(`${BASE_URL}/dicom/patient/${patientId}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch patient DICOMs");
+    return res.json();
+  },
+};
+
+// Analytics and Reports API
+export interface AnalyticsStats {
+  totalPatients: number;
+  appointmentsThisMonth: number;
+  revenue: number;
+  activePhysicians: number;
+  patientChangePercent: number;
+  appointmentChangePercent: number;
+  revenueChangePercent: number;
+  physicianChangePercent: number;
+}
+
+export interface MonthlyData {
+  month: string;
+  patients: number;
+  appointments: number;
+  revenue: number;
+}
+
+export interface SpecialtyData {
+  name: string;
+  value: number;
+  color: string;
+}
+
+export interface PatientDemographics {
+  malePatients: number;
+  femalePatients: number;
+  ageGroups: {
+    '18-30': number;
+    '31-50': number;
+    '51-70': number;
+    '70+': number;
+  };
+}
+
+export const analyticsApi = {
+  // Get dashboard statistics
+  getStats: async (): Promise<AnalyticsStats> => {
+    const res = await fetch(`${BASE_URL}/analytics/stats`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch analytics stats");
+    return res.json();
+  },
+
+  // Get monthly trends data
+  getMonthlyTrends: async (): Promise<MonthlyData[]> => {
+    const res = await fetch(`${BASE_URL}/analytics/monthly-trends`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch monthly trends");
+    return res.json();
+  },
+
+  // Get specialty distribution
+  getSpecialtyDistribution: async (): Promise<SpecialtyData[]> => {
+    const res = await fetch(`${BASE_URL}/analytics/specialties`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch specialty distribution");
+    return res.json();
+  },
+
+  // Get patient demographics
+  getPatientDemographics: async (): Promise<PatientDemographics> => {
+    const res = await fetch(`${BASE_URL}/analytics/demographics`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch patient demographics");
+    return res.json();
+  },
+};

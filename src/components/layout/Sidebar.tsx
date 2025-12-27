@@ -10,7 +10,10 @@ import {
   X,
   Layers,
   LogOut,
-  User
+  User,
+  CreditCard,
+  Eye,
+  BarChart3
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -27,7 +30,10 @@ export function Sidebar() {
     { to: "/specializations", icon: Layers, label: "Specializations", roles: ['admin', 'patient', 'physician'] },
     { to: "/physicians", icon: Stethoscope, label: "Physicians", roles: ['admin'] },
     { to: "/patients", icon: Users, label: "Patients", roles: ['admin'] },
+    { to: "/reports", icon: BarChart3, label: "Reports", roles: ['admin'] },
     { to: "/patient-profile", icon: User, label: "My Profile", roles: ['patient'] },
+    { to: "/billing", icon: CreditCard, label: "Billing", roles: ['patient', 'admin'] },
+    { to: "/dicom-viewer", icon: Eye, label: "DICOM Viewer", roles: ['physician', 'patient'] },
     { to: "/physician-profile", icon: User, label: "My Profile", roles: ['physician'] },
   ].filter(item => item.roles.includes(user?.role || ''));
 

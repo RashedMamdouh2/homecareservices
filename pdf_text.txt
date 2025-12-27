@@ -1,0 +1,97 @@
+HEALTHCARE SYSTEM PROJECT  
+ Team Requirements  
+The Project aims to allow each team to design and develop a unique healthcare solution that enhances 
+efficiency, accuracy, and overall patient and provider experience. Teams may choose any healthcare -
+related system idea such as hospital management, telemedicine platforms, pharmacy systems, laboratory 
+systems, rehabilitation centers, or wearable health monitoring dashboards , etc... The project should 
+encompass various aspects of hea lthcare operations, including patient management, appointment 
+scheduling, billing, and reporting  while  assisting  clinical staff in analyzing radiology scans with 
+interactive visualization and intelligent diagnostic support.  
+Each team must en sure their chosen system idea is unique and not duplicated by other teams.  
+1. System Requirements : 
+The system should encompass the following functionalities:  
+a) User Authentication and Authorization:  
+▪ Secure login for administrators, clinic al staff, and patients.  
+▪ Role -based access control (Admin, Clinic al Staff, Patient).  
+ 
+b) Patient Portal:  
+▪ Patient registration and profile management.  
+▪ Appointment scheduling and management.  
+▪ Medical history and record access.  
+▪ Prescription and treatment plan management.  
+▪ Billing and payment processing.  
+ 
+c) Appointment Management:  
+▪ Schedule and manage appointments efficiently.  
+ 
+d) Billing and Invoicing:  
+▪ Generate accurate bills for services provided.  
+ 
+e) Reporting and Analytics:  
+▪ Generate reports for system  performance, patient statistics, and financial insights.  
+▪ Provide data visualization for easy interpretation.  
+ 
+f) CDSS Integration for Radiology Scans:  
+▪ CDSS Module: Integrate a module that processes DICOM images from radiology scan s, 
+providing analysis or insights based on clinical guidelines or machine learning models.  ▪ User Interface: Develop a web -based interface as part of the system ’s website, allowing 
+seamless integration with patient profiles and ease of access for clinicians.  
+ 
+g) DICOM Viewer:  
+▪ Viewer Functionality: Implement an interactive DICOM vi ewer with basic tools like zoom, 
+pan, rotate, and contrast adjustment for clinic al staff and patient use.  
+▪ Multiplanar Reconstruction (MPR): Enables users to view images in multiple planes (axial, 
+sagittal, coronal) for improved spatia l orientation.  
+▪ Volume Rendering: Provides 3D representations of anatomical structures for detailed 
+analysis.  
+▪ Image Adjustment and Enhancement: Windowing, leveling, sharpening, smoothing, and 
+noise reduction filters for optimal image quality.  
+ 
+h)      Bonus:  
+▪ ICD-10 Integration:  Include ICD -10 codes in billing and reporting to standardize diagnoses 
+and support accu rate medical documentation.  
+▪ DICOM  Viewer : Include tools for annotations, measurements, and note -saving, with options 
+to integrate annotated images into patient records.  
+▪ Comparison Mode: Support side -by-side viewing of different DICOM images for historical 
+or multi -modality comparison s, such as CT vs. MRI.  
+ 
+2. Technology Stack : 
+a) Programming Languages : Specify preferred languages (e.g., JavaScript, Python, etc.).  
+ 
+b) Frameworks and Libraries:  Choose suitable frameworks for frontend and backend 
+development (e.g., React, Node.js,  Django, etc.).  For DICOM and CDSS integration,  utilize 
+medical image processing libraries such as PyDICOM, SimpleITK, or deep learning frameworks 
+like TensorFlow or PyTorch, for effective DICOM image handling and analysis.  
+ 
+c) Database:  Select an appropriate database management system (e.g., PostgreSQL, MongoDB, 
+etc.) and design the database schema.  
+ 
+3. Documentation : 
+Ensure comprehensive documentation for code, database schema, system architecture, and user guides 
+for administrators, clinic al staff, and patients.  
+ 
+4. Project Management and Collaboration : 
+Define tools and methodologies for project management, version control, and team collaboration (e.g., 
+Git, Agile, etc.).  5. Project Timeline : 
+NOTE:  Each team leader must submit Phase 0 for approval  by sending an email to Dr.  Eman A yman 
+(eman.ayman@eng1.cu.edu.eg ) and Eng.  Yara Elshamy  (yara.elshamy@eng.cu.edu.eg ).  
+ 
+Phases  Deliverables  Deadline  
+Phase 0  • Chosen healthcare  system  
+• Used Tools & language (All of them: frontend, 
+backend, and so on).  
+• Team members, Positions and your System Name.  
+• Preparing repo sitory  
+• Code Style for each team.  Week 7 
+November  7, 202 5 
+Phase 1  • Task division  
+• System Design  
+• ER Diagram, and features choosing and assigning 
+should be delivered in this phase.  Week 10 
+Phase 2 • 50% of the project should be finished    
+• Progress report for each member and a combined 
+progress report for the whole team.  Week 1 2 
+Phase 3 - Final Phase  • 100% of the project should be finished.  
+• All the other deliverables should be ready.  
+• Deliver a presentation with a working prototype of 
+your project.  Week 1 4 
+ 

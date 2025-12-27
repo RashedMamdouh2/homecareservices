@@ -3,6 +3,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { loadStripe } from "@stripe/stripe-js";
+import { Elements } from "@stripe/react-stripe-js";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Dashboard from "./pages/Dashboard";
@@ -14,6 +16,9 @@ import PatientProfile from "./pages/PatientProfile";
 import PhysicianProfile from "./pages/PhysicianProfile";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import Billing from "./pages/Billing";
+import DicomViewer from "./pages/DicomViewer";
+import Reports from "./pages/Reports";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -23,6 +28,8 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 // Protected route wrapper
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) => {
@@ -120,6 +127,36 @@ const AppRoutes = () => {
         }
       />
       <Route
+        path="/billing"
+        element={
+          <ProtectedRoute allowedRoles={['patient', 'admin']}>
+            <MainLayout>
+              <Billing />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dicom-viewer"
+        element={
+          <ProtectedRoute allowedRoles={['physician', 'patient']}>
+            <MainLayout>
+              <DicomViewer />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/reports"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <MainLayout>
+              <Reports />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/physician-profile"
         element={
           <ProtectedRoute allowedRoles={['physician']}>
@@ -147,13 +184,15 @@ const AppRoutes = () => {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
-      </TooltipProvider>
+      <Elements stripe={stripePromise}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </TooltipProvider>
+      </Elements>
     </AuthProvider>
   </QueryClientProvider>
 );
