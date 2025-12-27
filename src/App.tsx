@@ -10,6 +10,8 @@ import Appointments from "./pages/Appointments";
 import Physicians from "./pages/Physicians";
 import Patients from "./pages/Patients";
 import Specializations from "./pages/Specializations";
+import PatientProfile from "./pages/PatientProfile";
+import PhysicianProfile from "./pages/PhysicianProfile";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -93,6 +95,46 @@ const AppRoutes = () => {
           <ProtectedRoute>
             <MainLayout>
               <Specializations />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/patient-profile"
+        element={
+          <ProtectedRoute allowedRoles={['patient']}>
+            <MainLayout>
+              <PatientProfile />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/patient-profile/:id"
+        element={
+          <ProtectedRoute allowedRoles={['admin', 'physician']}>
+            <MainLayout>
+              <PatientProfile />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/physician-profile"
+        element={
+          <ProtectedRoute allowedRoles={['physician']}>
+            <MainLayout>
+              <PhysicianProfile />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/physician-profile/:id"
+        element={
+          <ProtectedRoute allowedRoles={['admin', 'patient']}>
+            <MainLayout>
+              <PhysicianProfile />
             </MainLayout>
           </ProtectedRoute>
         }

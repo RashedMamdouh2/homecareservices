@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { physiciansApi, specializationsApi } from "@/lib/api";
 import { PageHeader } from "@/components/common/PageHeader";
 import { PhysicianCard } from "@/components/physicians/PhysicianCard";
@@ -19,6 +20,7 @@ import {
 export default function Physicians() {
   const [search, setSearch] = useState("");
   const [selectedSpecialization, setSelectedSpecialization] = useState<string>("all");
+  const navigate = useNavigate();
 
   const { data: physicians, isLoading: physiciansLoading } = useQuery({
     queryKey: ["physicians"],
@@ -92,7 +94,10 @@ export default function Physicians() {
               className="animate-slide-up"
               style={{ animationDelay: `${index * 50}ms` }}
             >
-              <PhysicianCard physician={physician} />
+              <PhysicianCard 
+                physician={physician} 
+                onClick={() => navigate(`/physician-profile/${physician.id}`)}
+              />
             </div>
           ))}
         </div>
