@@ -49,13 +49,14 @@ Stripe.StripeConfiguration.ApiKey = builder.Configuration["Stripe:ApiKey"];
 
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("productionconnection"))
+    options.UseMySql(builder.Configuration.GetConnectionString("productionconnection"), ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("productionconnection")))
 );
 builder.Services.AddHangfire(configuration => configuration
         .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
         .UseSimpleAssemblyNameTypeSerializer()
         .UseRecommendedSerializerSettings()
-        .UseSqlServerStorage(builder.Configuration.GetConnectionString("productionconnection")));
+        .UseStorage(new Hangfire.MySql.MySqlStorage(builder.Configuration.GetConnectionString("productionconnection")))
+);
 
 //// Add the processing server as IHostedService
 builder.Services.AddHangfireServer();

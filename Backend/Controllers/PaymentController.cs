@@ -1,8 +1,11 @@
 using Homecare.DTO;
 using Homecare.Model;
+using Homecare.Options;
 using Homecare.Repository;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Stripe;
 
 namespace Homecare.Controllers
@@ -14,10 +17,10 @@ namespace Homecare.Controllers
         private readonly IUnitOfWork _unitOfWork;
         private readonly StripeOptions _stripeOptions;
 
-        public PaymentController(IUnitOfWork unitOfWork, StripeOptions stripeOptions)
+        public PaymentController(IUnitOfWork unitOfWork, IOptions<StripeOptions> stripeOptions)
         {
             _unitOfWork = unitOfWork;
-            _stripeOptions = stripeOptions;
+            _stripeOptions = stripeOptions.Value;
         }
 
         [HttpPost("create-payment-intent")]
@@ -27,7 +30,7 @@ namespace Homecare.Controllers
             try
             {
                 // Get invoice
-                var invoice = await _unitOfWork.Invoices.FindAsync(i => i.Id == paymentDto.InvoiceId);
+                var invoice = await _unitOfWork.Invoices.FindAsync(i => i.Id == paymentDto.InvoiceId, Array.Empty<string>());
                 if (invoice == null)
                     return NotFound("Invoice not found");
 
@@ -102,7 +105,7 @@ namespace Homecare.Controllers
                 var paymentIntent = await service.GetAsync(paymentIntentId);
 
                 // Find payment record
-                var payment = await _unitOfWork.Payments.FindAsync(p => p.StripePaymentIntentId == paymentIntentId);
+                var payment = await _unitOfWork.Payments.FindAsync(p => p.StripePaymentIntentId == paymentIntentId, Array.Empty<string>());
                 if (payment == null)
                     return NotFound("Payment not found");
 
@@ -114,7 +117,7 @@ namespace Homecare.Controllers
                     payment.UpdatedAt = DateTime.UtcNow;
 
                     // Update invoice status
-                    var invoice = await _unitOfWork.Invoices.FindAsync(i => i.Id == payment.InvoiceId);
+                    var invoice = await _unitOfWork.Invoices.FindAsync(i => i.Id == payment.InvoiceId, Array.Empty<string>());
                     if (invoice != null)
                     {
                         invoice.Status = "paid";
@@ -150,7 +153,7 @@ namespace Homecare.Controllers
         public async Task<IActionResult> GetInvoice(int invoiceId)
         {
             var invoice = await _unitOfWork.Invoices.FindAsync(i => i.Id == invoiceId,
-                new[] { nameof(Invoice.Patient), nameof(Invoice.Payments) });
+                new[] { "Patient", "Payments" });
 
             if (invoice == null)
                 return NotFound("Invoice not found");
@@ -193,7 +196,7 @@ namespace Homecare.Controllers
         public async Task<IActionResult> GetPatientInvoices(int patientId)
         {
             var invoices = _unitOfWork.Invoices.FindAll(i => i.PatientId == patientId,
-                new[] { nameof(Invoice.Patient), nameof(Invoice.Payments) })
+                new[] { "Patient", "Payments" })
                 .OrderByDescending(i => i.InvoiceDate);
 
             var invoiceDtos = invoices.Select(invoice => new InvoiceSendDto
@@ -227,11 +230,11 @@ namespace Homecare.Controllers
         [Authorize(Roles = "admin")]
         public async Task<IActionResult> CreateInvoice([FromBody] InvoiceCreateDto invoiceDto)
         {
-            var patient = await _unitOfWork.Patients.FindAsync(p => p.Id == invoiceDto.PatientId);
+            var patient = await _unitOfWork.Patients.FindAsync(p => p.Id == invoiceDto.PatientId, Array.Empty<string>());
             if (patient == null)
                 return NotFound("Patient not found");
 
-            var invoice = new Invoice
+            var invoice = new Homecare.Model.Invoice
             {
                 PatientId = invoiceDto.PatientId,
                 Amount = invoiceDto.Amount,
@@ -253,25 +256,25 @@ namespace Homecare.Controllers
             var userId = User.FindFirst("userId")?.Value;
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            var user = await _unitOfWork.ApplicationUsers.FindAsync(u => u.Id == userId);
+            var user = await _unitOfWork.ApplicationUsers.FindAsync(u => u.Id == userId, Array.Empty<string>());
             if (user == null) return Unauthorized();
 
             // Get patient or physician based on role
-            IEnumerable<Invoice> invoices;
+            IEnumerable<Homecare.Model.Invoice> invoices;
             if (User.IsInRole("Patient"))
             {
-                var patient = await _unitOfWork.Patients.FindAsync(p => p.UserId == userId);
+                var patient = user.Patient;
                 if (patient == null) return NotFound("Patient not found");
                 invoices = await _unitOfWork.Invoices.FindAll(
                     i => i.PatientId == patient.Id,
-                    new[] { nameof(Invoice.Patient), nameof(Invoice.Payments) });
+                    new[] { "Patient", "Payments" }).ToListAsync();
             }
             else if (User.IsInRole("Physician") || User.IsInRole("Admin"))
             {
                 // Admin/Physician can see all invoices
                 invoices = await _unitOfWork.Invoices.FindAll(
-                    null,
-                    new[] { nameof(Invoice.Patient), nameof(Invoice.Payments) });
+                    i => true,
+                    new[] { "Patient", "Payments" }).ToListAsync();
             }
             else
             {
@@ -315,6 +318,30 @@ namespace Homecare.Controllers
             return await ConfirmPaymentIntent(confirmation.PaymentIntentId);
         }
 
+        private async Task<IActionResult> ConfirmPaymentIntent(string paymentIntentId)
+        {
+            try
+            {
+                var paymentIntentService = new PaymentIntentService();
+                var paymentIntent = await paymentIntentService.ConfirmAsync(paymentIntentId);
+
+                // Update payment status in database if needed
+                var payment = await _unitOfWork.Payments.FindAsync(p => p.StripePaymentIntentId == paymentIntentId, new string[] { });
+                if (payment != null)
+                {
+                    payment.Status = paymentIntent.Status;
+                    _unitOfWork.Payments.UpdateById(payment);
+                    await _unitOfWork.SaveDbAsync();
+                }
+
+                return Ok(new { status = paymentIntent.Status, clientSecret = paymentIntent.ClientSecret });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
         [HttpPost("generate-bill")]
         [Authorize(Roles = "Admin,Physician")]
         public async Task<IActionResult> GenerateBill([FromBody] InvoiceCreateDto invoiceDto)
@@ -329,23 +356,22 @@ namespace Homecare.Controllers
             var userId = User.FindFirst("userId")?.Value;
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            var user = await _unitOfWork.ApplicationUsers.FindAsync(u => u.Id == userId);
+            var user = await _unitOfWork.ApplicationUsers.FindAsync(u => u.Id == userId, Array.Empty<string>());
             if (user == null) return Unauthorized();
 
             IEnumerable<Payment> payments;
             if (User.IsInRole("Patient"))
             {
-                var patient = await _unitOfWork.Patients.FindAsync(p => p.UserId == userId);
-                if (patient == null) return NotFound("Patient not found");
+                if (user.PatientId == null) return NotFound("Patient not found");
                 payments = await _unitOfWork.Payments.FindAll(
-                    p => p.Invoice.PatientId == patient.Id,
-                    new[] { nameof(Payment.Invoice), $"{nameof(Payment.Invoice)}.{nameof(Invoice.Patient)}" });
+                    p => p.Invoice.PatientId == user.PatientId,
+                    new[] { nameof(Payment.Invoice), $"{nameof(Payment.Invoice)}.{nameof(Homecare.Model.Invoice.Patient)}" }).ToListAsync();
             }
             else if (User.IsInRole("Physician") || User.IsInRole("Admin"))
             {
                 payments = await _unitOfWork.Payments.FindAll(
-                    null,
-                    new[] { nameof(Payment.Invoice), $"{nameof(Payment.Invoice)}.{nameof(Invoice.Patient)}" });
+                    p => true,
+                    new[] { nameof(Payment.Invoice), $"{nameof(Payment.Invoice)}.{nameof(Homecare.Model.Invoice.Patient)}" }).ToListAsync();
             }
             else
             {

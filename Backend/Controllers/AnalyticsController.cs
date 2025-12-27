@@ -33,14 +33,14 @@ namespace Homecare.Controllers
                 var totalPatients = await _unitOfWork.Patients.CountAsync();
                 var totalPhysicians = await _unitOfWork.Physicians.CountAsync();
                 var totalAppointments = await _unitOfWork.Appointments.CountAsync();
-                var completedAppointments = await _unitOfWork.Appointments.CountAsync(a => a.Status == AppointmentStatus.Finished);
-                var pendingAppointments = await _unitOfWork.Appointments.CountAsync(a => a.Status == AppointmentStatus.FutureAppointment);
+                var completedAppointments = await _unitOfWork.Appointments.CountAsync(a => a.Status == AppointmentStatus.Completed);
+                var pendingAppointments = await _unitOfWork.Appointments.CountAsync(a => a.Status == AppointmentStatus.Confirmed);
                 var totalReports = await _unitOfWork.Reports.CountAsync();
                 var totalMedications = await _unitOfWork.Medications.CountAsync();
                 var totalDicomFiles = await _unitOfWork.DicomFiles.CountAsync();
 
                 // Revenue calculations
-                var allPayments = await _unitOfWork.Payments.FindAll(p => p.Status == "completed").ToListAsync();
+                var allPayments = await _unitOfWork.Payments.FindAll(p => p.Status == "completed", Array.Empty<string>()).ToListAsync();
                 var totalRevenue = allPayments.Sum(p => p.Amount);
                 var monthlyRevenue = allPayments.Where(p => p.PaymentDate >= startOfMonth).Sum(p => p.Amount);
 
@@ -84,7 +84,7 @@ namespace Homecare.Controllers
                     {
                         SpecializationName = g.Key.Name,
                         PhysicianCount = g.Count(),
-                        AppointmentCount = g.Sum(p => p.Appointements.Count)
+                        AppointmentCount = g.Sum(p => p.ConfirmedAppointements.Count)
                     })
                     .ToListAsync();
 
@@ -128,7 +128,7 @@ namespace Homecare.Controllers
                 ByGender = patients.GroupBy(p => p.Gender)
                     .Select(g => new { Gender = g.Key, Count = g.Count() }),
                 AverageAppointmentsPerPatient = patients.Any() ? patients.Average(p => p.Appointements.Count) : 0,
-                NewPatientsThisMonth = patients.Count(p => p.CreatedAt >= DateTime.UtcNow.AddMonths(-1))
+                NewPatientsThisMonth = 0 // TODO: Add CreatedAt to Patient model
             };
 
             return Ok(overview);
@@ -201,7 +201,7 @@ namespace Homecare.Controllers
         [Authorize(Roles = "admin")]
         public async Task<IActionResult> GetMetrics([FromQuery] AnalyticsQueryDto query)
         {
-            var queryable = _unitOfWork.AnalyticsData.FindAll(a => true);
+            var queryable = _unitOfWork.AnalyticsData.FindAll(a => true, Array.Empty<string>());
 
             if (query.StartDate.HasValue)
                 queryable = queryable.Where(a => a.Date >= query.StartDate.Value);
@@ -234,17 +234,17 @@ namespace Homecare.Controllers
                 var totalPatients = await _unitOfWork.Patients.CountAsync();
                 var appointmentsThisMonth = await _unitOfWork.Appointments.CountAsync(a => a.AppointmentDate >= startOfMonth);
                 var activePhysicians = await _unitOfWork.Physicians.CountAsync();
-                var revenue = (await _unitOfWork.Payments.FindAll(p => p.Status == "completed" && p.PaymentDate >= startOfMonth)).Sum(p => p.Amount);
+                var revenue = (await _unitOfWork.Payments.FindAll(p => p.Status == "completed" && p.PaymentDate >= startOfMonth, Array.Empty<string>()).ToListAsync()).Sum(p => p.Amount);
 
                 // Previous month stats for percentage calculations
                 var patientsLastMonth = totalPatients; // Simplified - in real app you'd track historical data
                 var appointmentsLastMonth = await _unitOfWork.Appointments.CountAsync(a => a.AppointmentDate >= lastMonth && a.AppointmentDate < startOfMonth);
-                var revenueLastMonth = (await _unitOfWork.Payments.FindAll(p => p.Status == "completed" && p.PaymentDate >= lastMonth && p.PaymentDate < startOfMonth)).Sum(p => p.Amount);
+                var revenueLastMonth = (await _unitOfWork.Payments.FindAll(p => p.Status == "completed" && p.PaymentDate >= lastMonth && p.PaymentDate < startOfMonth, Array.Empty<string>()).ToListAsync()).Sum(p => p.Amount);
 
                 // Calculate percentage changes
                 var patientChangePercent = patientsLastMonth > 0 ? ((totalPatients - patientsLastMonth) / (double)patientsLastMonth) * 100 : 0;
                 var appointmentChangePercent = appointmentsLastMonth > 0 ? ((appointmentsThisMonth - appointmentsLastMonth) / (double)appointmentsLastMonth) * 100 : 0;
-                var revenueChangePercent = revenueLastMonth > 0 ? ((revenue - revenueLastMonth) / (double)revenueLastMonth) * 100 : 0;
+                var revenueChangePercent = revenueLastMonth > 0 ? ((decimal)(revenue - revenueLastMonth) / (decimal)revenueLastMonth) * 100 : 0;
                 var physicianChangePercent = 0; // Simplified
 
                 var stats = new
@@ -281,9 +281,9 @@ namespace Homecare.Controllers
                     var monthStart = new DateTime(now.Year, now.Month, 1).AddMonths(-i);
                     var monthEnd = monthStart.AddMonths(1);
 
-                    var patients = await _unitOfWork.Patients.CountAsync(p => p.CreatedAt >= monthStart && p.CreatedAt < monthEnd);
+                    var patients = 0; // TODO: Add CreatedAt to Patient model
                     var appointments = await _unitOfWork.Appointments.CountAsync(a => a.AppointmentDate >= monthStart && a.AppointmentDate < monthEnd);
-                    var revenue = (await _unitOfWork.Payments.FindAll(p => p.Status == "completed" && p.PaymentDate >= monthStart && p.PaymentDate < monthEnd)).Sum(p => p.Amount);
+                    var revenue = (await _unitOfWork.Payments.FindAll(p => p.Status == "completed" && p.PaymentDate >= monthStart && p.PaymentDate < monthEnd, Array.Empty<string>()).ToListAsync()).Sum(p => p.Amount);
 
                     monthlyData.Add(new
                     {
@@ -308,7 +308,7 @@ namespace Homecare.Controllers
         {
             try
             {
-                var specialties = await _unitOfWork.Specializations.FindAll(null, new[] { nameof(Specialization.Physicians) });
+                var specialties = await _unitOfWork.Specializations.FindAll(s => true, new[] { nameof(Specialization.Physicians) }).ToListAsync();
                 var colors = new[] { "#8884d8", "#82ca9d", "#ffc658", "#ff7300", "#00ff00", "#ff00ff" };
 
                 var specialtyData = specialties.Select((s, index) => new
@@ -332,17 +332,17 @@ namespace Homecare.Controllers
         {
             try
             {
-                var patients = await _unitOfWork.Patients.FindAll();
+                var patients = await _unitOfWork.Patients.FindAll(p => true, Array.Empty<string>()).ToListAsync();
 
                 var malePatients = patients.Count(p => p.Gender?.ToLower() == "male");
                 var femalePatients = patients.Count(p => p.Gender?.ToLower() == "female");
 
                 var ageGroups = new
                 {
-                    _18_30 = patients.Count(p => p.DateOfBirth.HasValue && GetAge(p.DateOfBirth.Value) >= 18 && GetAge(p.DateOfBirth.Value) <= 30),
-                    _31_50 = patients.Count(p => p.DateOfBirth.HasValue && GetAge(p.DateOfBirth.Value) >= 31 && GetAge(p.DateOfBirth.Value) <= 50),
-                    _51_70 = patients.Count(p => p.DateOfBirth.HasValue && GetAge(p.DateOfBirth.Value) >= 51 && GetAge(p.DateOfBirth.Value) <= 70),
-                    _70_plus = patients.Count(p => p.DateOfBirth.HasValue && GetAge(p.DateOfBirth.Value) > 70)
+                    _18_30 = 0, // TODO: Add DateOfBirth to Patient model
+                    _31_50 = 0,
+                    _51_70 = 0,
+                    _70_plus = 0
                 };
 
                 var demographics = new

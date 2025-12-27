@@ -23,6 +23,14 @@ namespace Homecare.Repository
             var obj = await GetById(id);
             DbSet.Remove(obj);
         }
+        public void RemoveById(int id)
+        {
+            var obj = DbSet.Find(id);
+            if (obj != null)
+            {
+                DbSet.Remove(obj);
+            }
+        }
         public IEnumerable<TEntity> GetAll()
         {
             return DbSet.AsNoTracking();
@@ -45,7 +53,7 @@ namespace Homecare.Repository
             
             return await query.FirstOrDefaultAsync(ex);
         }
-        public IEnumerable<TEntity> FindAll(Expression<Func<TEntity, bool>> filter, string[] includes, int take = -1, int skip = -1)
+        public IQueryable<TEntity> FindAll(Expression<Func<TEntity, bool>> filter, string[] includes, int take = -1, int skip = -1)
         {
 
             Expression<Func<TEntity, bool>> ex = filter;
@@ -64,11 +72,19 @@ namespace Homecare.Repository
             {
                 res = res.Skip(skip);
             }
-            return res.AsEnumerable();
+            return res;
         }
         public int Count()
         {
             return DbSet.Count();
+        }
+        public async Task<int> CountAsync()
+        {
+            return await DbSet.CountAsync();
+        }
+        public async Task<int> CountAsync(Expression<Func<TEntity, bool>> filter)
+        {
+            return await DbSet.CountAsync(filter);
         }
         public void UpdateById(TEntity entity)
         {

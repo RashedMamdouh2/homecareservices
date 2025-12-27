@@ -18,6 +18,7 @@ namespace Homecare.Repository
         public IRepository<DicomFile> DicomFiles { get; }
         public IRepository<DicomAnnotation> DicomAnnotations { get; }
         public IRepository<AnalyticsData> AnalyticsData { get; }
+        public IRepository<ApplicationUser> ApplicationUsers { get; }
 
 
 

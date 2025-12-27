@@ -20,6 +20,7 @@ namespace Homecare.Repository
         public IRepository<DicomFile> DicomFiles { get; private set; }
         public IRepository<DicomAnnotation> DicomAnnotations { get; private set; }
         public IRepository<AnalyticsData> AnalyticsData { get; private set; }
+        public IRepository<ApplicationUser> ApplicationUsers { get; private set; }
 
 
         public UnitOfWork(ApplicationDbContext context)
@@ -39,7 +40,7 @@ namespace Homecare.Repository
             DicomFiles = new Repository<DicomFile>(context);
             DicomAnnotations = new Repository<DicomAnnotation>(context);
             AnalyticsData = new Repository<AnalyticsData>(context);
-           
+            ApplicationUsers = new Repository<ApplicationUser>(context);
         }
         public async Task<int> SaveDbAsync()
         {
