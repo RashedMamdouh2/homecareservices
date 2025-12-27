@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { appointmentsApi, ReportMedicationDto, getAssetUrl } from "@/lib/api";
+import { appointmentsApi, ReportMedicationDto, getAssetUrl, patientMedicalApi, DiseaseSearchResult } from "@/lib/api";
 import {
   Dialog,
   DialogContent,
@@ -12,8 +12,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Plus, Trash2, Clock, FileDown, X } from "lucide-react";
+import { Plus, Trash2, Clock, FileDown, X, Search, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface AddReportDialogProps {
   open: boolean;
@@ -50,18 +51,76 @@ export function AddReportDialog({
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
+  // Diagnosis state
+  const [diseaseSearch, setDiseaseSearch] = useState("");
+  const [diseaseResults, setDiseaseResults] = useState<DiseaseSearchResult[]>([]);
+  const [selectedDisease, setSelectedDisease] = useState<DiseaseSearchResult | null>(null);
+  const [diagnosisDate, setDiagnosisDate] = useState(new Date().toISOString().split("T")[0]);
+  const [recoveryDate, setRecoveryDate] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [showDiseaseDropdown, setShowDiseaseDropdown] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  // Search diseases with debounce
+  useEffect(() => {
+    if (!diseaseSearch.trim()) {
+      setDiseaseResults([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const results = await patientMedicalApi.searchDiseases(diseaseSearch);
+        setDiseaseResults(results);
+        setShowDiseaseDropdown(true);
+      } catch (error) {
+        console.error("Failed to search diseases:", error);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [diseaseSearch]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowDiseaseDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const mutation = useMutation({
-    mutationFn: () =>
-      appointmentsApi.addReport(appointmentId, {
+    mutationFn: async () => {
+      // First add the report
+      const pdfPath = await appointmentsApi.addReport(appointmentId, {
         descritpion: description,
         patientId,
         physicianId,
         medications: medications as ReportMedicationDto[],
-      }),
+      });
+
+      // If a disease is selected, add the diagnosis
+      if (selectedDisease) {
+        await patientMedicalApi.addDiagnosis(patientId, {
+          patientId,
+          icd: selectedDisease.icd,
+          diagnosisDate,
+          recoverdDate: recoveryDate || undefined,
+        });
+      }
+
+      return pdfPath;
+    },
     onSuccess: (pdfPath) => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["patient-diseases"] });
       toast.success("Report added successfully");
-      // pdfPath is now a URL path, not base64
       setPdfUrl(pdfPath);
     },
     onError: () => {
@@ -74,6 +133,24 @@ export function AddReportDialog({
     setMedications([]);
     setShowTimeSelector(null);
     setPdfUrl(null);
+    setDiseaseSearch("");
+    setDiseaseResults([]);
+    setSelectedDisease(null);
+    setDiagnosisDate(new Date().toISOString().split("T")[0]);
+    setRecoveryDate("");
+    setShowDiseaseDropdown(false);
+  };
+
+  const selectDisease = (disease: DiseaseSearchResult) => {
+    setSelectedDisease(disease);
+    setDiseaseSearch(disease.name);
+    setShowDiseaseDropdown(false);
+  };
+
+  const clearSelectedDisease = () => {
+    setSelectedDisease(null);
+    setDiseaseSearch("");
+    setDiseaseResults([]);
   };
 
   const handleClose = () => {
@@ -164,6 +241,81 @@ export function AddReportDialog({
               placeholder="Enter report description..."
               rows={3}
             />
+          </div>
+
+          {/* Diagnosis Section */}
+          <div className="space-y-4 p-4 border border-border rounded-lg bg-muted/30">
+            <Label className="text-base font-semibold">Diagnosis (Optional)</Label>
+            
+            <div className="space-y-2" ref={searchRef}>
+              <Label>Search Disease</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={diseaseSearch}
+                  onChange={(e) => {
+                    setDiseaseSearch(e.target.value);
+                    if (selectedDisease) setSelectedDisease(null);
+                  }}
+                  placeholder="Type disease name to search..."
+                  className="pl-9"
+                  onFocus={() => diseaseResults.length > 0 && setShowDiseaseDropdown(true)}
+                />
+                {isSearching && (
+                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                )}
+                
+                {showDiseaseDropdown && diseaseResults.length > 0 && (
+                  <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-lg">
+                    <ScrollArea className="max-h-48">
+                      {diseaseResults.map((disease) => (
+                        <button
+                          key={disease.icd}
+                          type="button"
+                          className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex justify-between items-center"
+                          onClick={() => selectDisease(disease)}
+                        >
+                          <span>{disease.name}</span>
+                          <span className="text-xs text-muted-foreground">{disease.icd}</span>
+                        </button>
+                      ))}
+                    </ScrollArea>
+                  </div>
+                )}
+              </div>
+              
+              {selectedDisease && (
+                <div className="flex items-center gap-2 mt-2">
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    {selectedDisease.name} ({selectedDisease.icd})
+                    <button type="button" onClick={clearSelectedDisease} className="ml-1 hover:text-destructive">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                </div>
+              )}
+            </div>
+
+            {selectedDisease && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Diagnosis Date</Label>
+                  <Input
+                    type="date"
+                    value={diagnosisDate}
+                    onChange={(e) => setDiagnosisDate(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Recovery Date (Optional)</Label>
+                  <Input
+                    type="date"
+                    value={recoveryDate}
+                    onChange={(e) => setRecoveryDate(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="space-y-4">
