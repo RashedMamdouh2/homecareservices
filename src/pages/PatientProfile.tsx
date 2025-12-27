@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { AddDiagnosisDialog } from "@/components/patients/AddDiagnosisDialog";
 import {
   User,
   Phone,
@@ -16,13 +17,12 @@ import {
   Pill,
   Stethoscope,
   Clock,
-  FileText,
 } from "lucide-react";
 
 export default function PatientProfile() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, isPatient } = useAuth();
+  const { user, isPatient, isPhysician } = useAuth();
 
   // Use current user's patientId if they're a patient viewing their own profile
   const patientId = id ? parseInt(id) : user?.patientId;
@@ -131,18 +131,23 @@ export default function PatientProfile() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Diseases */}
         <Card className="p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-lg bg-destructive/10 flex items-center justify-center">
-              <Stethoscope className="w-5 h-5 text-destructive" />
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-destructive/10 flex items-center justify-center">
+                <Stethoscope className="w-5 h-5 text-destructive" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-card-foreground">
+                  Medical Conditions
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Diagnosed diseases
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-semibold text-card-foreground">
-                Medical Conditions
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                Diagnosed diseases
-              </p>
-            </div>
+            {isPhysician && patientId && (
+              <AddDiagnosisDialog patientId={patientId} />
+            )}
           </div>
           <ScrollArea className="h-[300px]">
             {loadingDiseases ? (
