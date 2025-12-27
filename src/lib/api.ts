@@ -601,6 +601,13 @@ export interface DicomAnalysisResult {
   patientId?: number;
 }
 
+export interface DicomUploadRequest {
+  patientId: number;
+  physicianId: number;
+  file: File;
+  notes?: string;
+}
+
 export interface DicomUploadResponse {
   id: string;
   fileName: string;
@@ -610,9 +617,14 @@ export interface DicomUploadResponse {
 
 export const dicomApi = {
   // Upload DICOM file
-  uploadDicom: async (file: File): Promise<DicomUploadResponse> => {
+  uploadDicom: async (data: DicomUploadRequest): Promise<DicomUploadResponse> => {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('PatientId', data.patientId.toString());
+    formData.append('PhysicianId', data.physicianId.toString());
+    formData.append('File', data.file);
+    if (data.notes) {
+      formData.append('Notes', data.notes);
+    }
 
     const res = await fetch(`${BASE_URL}/dicom/upload`, {
       method: "POST",
