@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { physicianScheduleApi } from "@/lib/api";
-import { useAuth } from "@/contexts/AuthContext";
 import {
   Dialog,
   DialogContent,
@@ -14,8 +13,9 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Plus, Clock } from "lucide-react";
+import { Plus, Clock, X } from "lucide-react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 
 interface AddAvailabilityDialogProps {
   physicianId: number;
@@ -24,12 +24,12 @@ interface AddAvailabilityDialogProps {
 export function AddAvailabilityDialog({ physicianId }: AddAvailabilityDialogProps) {
   const [open, setOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [startTime, setStartTime] = useState("09:00");
-  const [endTime, setEndTime] = useState("17:00");
+  const [time, setTime] = useState("09:00");
+  const [selectedDateTimes, setSelectedDateTimes] = useState<string[]>([]);
   const queryClient = useQueryClient();
 
   const addMutation = useMutation({
-    mutationFn: physicianScheduleApi.addAvailability,
+    mutationFn: (dates: string[]) => physicianScheduleApi.addFreeAppointments(physicianId, dates),
     onSuccess: () => {
       toast.success("Availability added successfully");
       queryClient.invalidateQueries({ queryKey: ["physician-free-slots"] });
@@ -43,22 +43,43 @@ export function AddAvailabilityDialog({ physicianId }: AddAvailabilityDialogProp
 
   const resetForm = () => {
     setSelectedDate(new Date());
-    setStartTime("09:00");
-    setEndTime("17:00");
+    setTime("09:00");
+    setSelectedDateTimes([]);
   };
 
-  const handleSubmit = () => {
+  const handleAddDateTime = () => {
     if (!selectedDate) {
       toast.error("Please select a date");
       return;
     }
 
-    addMutation.mutate({
-      physicianId,
-      date: format(selectedDate, "yyyy-MM-dd"),
-      startTime: `${startTime}:00`,
-      endTime: `${endTime}:00`,
-    });
+    // Combine date and time into ISO format
+    const dateTimeStr = `${format(selectedDate, "yyyy-MM-dd")}T${time}:00`;
+    
+    if (selectedDateTimes.includes(dateTimeStr)) {
+      toast.error("This time slot is already added");
+      return;
+    }
+
+    setSelectedDateTimes([...selectedDateTimes, dateTimeStr]);
+  };
+
+  const handleRemoveDateTime = (dateTime: string) => {
+    setSelectedDateTimes(selectedDateTimes.filter((dt) => dt !== dateTime));
+  };
+
+  const handleSubmit = () => {
+    if (selectedDateTimes.length === 0) {
+      toast.error("Please add at least one time slot");
+      return;
+    }
+
+    addMutation.mutate(selectedDateTimes);
+  };
+
+  const formatDateTime = (dateTime: string) => {
+    const date = new Date(dateTime);
+    return format(date, "MMM d, yyyy h:mm a");
   };
 
   return (
@@ -71,7 +92,7 @@ export function AddAvailabilityDialog({ physicianId }: AddAvailabilityDialogProp
       </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Add Available Time Slot</DialogTitle>
+          <DialogTitle>Add Available Time Slots</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -88,37 +109,54 @@ export function AddAvailabilityDialog({ physicianId }: AddAvailabilityDialogProp
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Clock className="w-4 h-4" />
-                Start Time
-              </Label>
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              Time
+            </Label>
+            <div className="flex gap-2">
               <Input
                 type="time"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+                className="flex-1"
               />
-            </div>
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Clock className="w-4 h-4" />
-                End Time
-              </Label>
-              <Input
-                type="time"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-              />
+              <Button type="button" variant="outline" onClick={handleAddDateTime}>
+                <Plus className="w-4 h-4" />
+              </Button>
             </div>
           </div>
+
+          {selectedDateTimes.length > 0 && (
+            <div className="space-y-2">
+              <Label>Selected Time Slots</Label>
+              <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 bg-muted/50 rounded-lg">
+                {selectedDateTimes.map((dateTime) => (
+                  <Badge
+                    key={dateTime}
+                    variant="secondary"
+                    className="flex items-center gap-1"
+                  >
+                    {formatDateTime(dateTime)}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveDateTime(dateTime)}
+                      className="ml-1 hover:text-destructive"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
 
           <Button
             className="w-full"
             onClick={handleSubmit}
-            disabled={addMutation.isPending}
+            disabled={addMutation.isPending || selectedDateTimes.length === 0}
           >
-            {addMutation.isPending ? "Adding..." : "Add Availability"}
+            {addMutation.isPending ? "Adding..." : `Add ${selectedDateTimes.length} Time Slot${selectedDateTimes.length !== 1 ? 's' : ''}`}
           </Button>
         </div>
       </DialogContent>
