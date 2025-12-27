@@ -1,0 +1,20 @@
+[33ma6d04f9[m[33m ([m[1;36mHEAD -> [m[1;32mtemp-main[m[33m, [m[1;31morigin/main[m[33m)[m HEAD@{0}: checkout: moving from main to temp-main
+[33mcc36722[m[33m ([m[1;32mmain[m[33m)[m HEAD@{1}: commit: add the frontend folder to gitignore
+[33m55e3b4b[m HEAD@{2}: commit: ignore tracking appsettings secrets and add some migrations
+[33mb461d1e[m HEAD@{3}: commit: Register the pdf service
+[33m930161c[m HEAD@{4}: commit: changes some relations between models
+[33mfafb476[m HEAD@{5}: commit: add as no tracking for better Db Performance
+[33mdf07017[m HEAD@{6}: commit: create the PDF report generation service
+[33m9f3d86c[m HEAD@{7}: commit: create the DTOs for all models
+[33m5081e50[m HEAD@{8}: commit: create the Physician CRUD endpoints
+[33ma252477[m HEAD@{9}: commit: create the appointments CRUD
+[33m931afbf[m HEAD@{10}: commit: add image service to convert to/from byte array into base64 string
+[33md27c8d1[m HEAD@{11}: commit: create the patient controller
+[33m77104ae[m HEAD@{12}: checkout: moving from 0cadc673858dbd4d648ffff0ebd10df2c7f4b18a to main
+[33m0cadc67[m HEAD@{13}: commit: bayz
+[33mcd8750f[m HEAD@{14}: checkout: moving from main to cd8750f
+[33m77104ae[m HEAD@{15}: commit: last version
+[33m301532b[m HEAD@{16}: commit: add the IRepo properties to the UOW interface
+[33m46753e1[m HEAD@{17}: commit: create objects of models Repo in UOW
+[33mc34abc5[m HEAD@{18}: commit: add repository and unit of work class for database operations
+[33mcd8750f[m HEAD@{19}: commit (initial): first commit

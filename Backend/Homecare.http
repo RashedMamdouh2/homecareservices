@@ -1,0 +1,9 @@
+@Homecare_HostAddress = http://localhost:5004
+
+GET {{Homecare_HostAddress}}/patient/GetAllPatients
+Accept: application/json
+
+###
+GET {{Homecare_HostAddress}}/patient/1
+###
+GET {{}}

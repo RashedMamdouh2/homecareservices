@@ -1,0 +1,11 @@
+.vs/
+bin/
+obj/
+*.user
+*.suo
+*.vsidx
+appsettings.json
+appsettings.Development.json
+appsettings.*.json
+frontend/*
+

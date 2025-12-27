@@ -1,7 +1,7 @@
 import { getAuthToken } from "@/contexts/AuthContext";
 
-const BASE_URL = "https://homecareservice.runasp.net/api";
-const ASSET_BASE_URL = "https://homecareservice.runasp.net";
+const BASE_URL = import.meta.env.VITE_API_URL || "https://homecareservice.runasp.net/api";
+const ASSET_BASE_URL = import.meta.env.VITE_ASSET_URL || "https://homecareservice.runasp.net";
 
 // Helper to construct full URL for images and PDFs
 export const getAssetUrl = (path: string | undefined): string | null => {
@@ -475,13 +475,23 @@ export const physicianScheduleApi = {
 
 // Payment and Billing API
 export interface InvoiceDto {
-  id: number;
-  date: string;
-  amount: number;
-  status: 'paid' | 'unpaid' | 'pending';
-  description: string;
-  patientId?: number;
-  patientName?: string;
+  Id: number;
+  PatientId: number;
+  PatientName: string;
+  Amount: number;
+  Description: string;
+  InvoiceDate: string;
+  DueDate?: string;
+  Status: string;
+  Payments: PaymentSendDto[];
+}
+
+export interface PaymentSendDto {
+  Id: number;
+  Amount: number;
+  PaymentDate: string;
+  PaymentMethod: string;
+  Status: string;
 }
 
 export interface PaymentIntentDto {

@@ -91,7 +91,7 @@ export default function Billing() {
 
     try {
       // Create payment intent on backend
-      const paymentIntent = await paymentApi.createPaymentIntent(invoice.id);
+      const paymentIntent = await paymentApi.createPaymentIntent(invoice.Id);
       setClientSecret(paymentIntent.clientSecret);
 
       // Confirm payment with Stripe
@@ -281,20 +281,20 @@ export default function Billing() {
           ) : (
             <div className="space-y-4">
               {invoices.map((invoice) => (
-                <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div key={invoice.Id} className="flex items-center justify-between p-4 border rounded-lg">
                   <div>
-                    <p className="font-medium">{invoice.description}</p>
-                    <p className="text-sm text-muted-foreground">{invoice.date}</p>
-                    {invoice.patientName && (
-                      <p className="text-sm text-muted-foreground">Patient: {invoice.patientName}</p>
+                    <p className="font-medium">{invoice.Description}</p>
+                    <p className="text-sm text-muted-foreground">{invoice.InvoiceDate}</p>
+                    {invoice.PatientName && (
+                      <p className="text-sm text-muted-foreground">Patient: {invoice.PatientName}</p>
                     )}
                   </div>
                   <div className="flex items-center gap-4">
-                    <span className="font-semibold">${invoice.amount}</span>
-                    <Badge variant={invoice.status === 'paid' ? 'default' : invoice.status === 'pending' ? 'secondary' : 'destructive'}>
-                      {invoice.status}
+                    <span className="font-semibold">${invoice.Amount}</span>
+                    <Badge variant={invoice.Status === 'paid' ? 'default' : invoice.Status === 'pending' ? 'secondary' : 'destructive'}>
+                      {invoice.Status}
                     </Badge>
-                    {invoice.status === 'unpaid' && (
+                    {invoice.Status === 'unpaid' && (
                       <Button
                         onClick={() => handlePayment(invoice)}
                         disabled={isProcessing || !stripe}
