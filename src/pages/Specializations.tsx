@@ -120,7 +120,7 @@ export default function Specializations() {
                       key={physician.id} 
                       physician={physician} 
                       showActions={false}
-                      onClick={() => navigate(`/physicians/${physician.id}`)}
+                      onClick={() => navigate(`/physician-profile/${physician.id}`)}
                     />
                   ))}
                 </div>
