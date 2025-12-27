@@ -65,10 +65,12 @@ export interface StripePaymentDto {
   patientUserId: string;
   customerEmail: string;
   sessionPrice: number;
+  successUrl: string;
+  cancelUrl: string;
 }
 
 export interface StripePaymentResponse {
-  url: string;
+  redirectUrl: string;
 }
 
 export interface PhysicianCreateDto {

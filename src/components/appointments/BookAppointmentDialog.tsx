@@ -207,23 +207,38 @@ export function BookAppointmentDialog({
   };
 
   const handlePayment = async () => {
-    if (!user?.id || !physicianDetails) {
-      toast.error("Missing user or physician information");
+    if (!user?.id || !physicianDetails || !selectedPhysician || !selectedDay || !selectedTime) {
+      toast.error("Missing required information");
       return;
     }
 
     const sessionPrice = physicianDetails.sessionPrice || 0;
+    const baseUrl = window.location.origin;
+    
+    // Build appointment data to pass via URL params for success callback
+    const appointmentData = {
+      physicianId: selectedPhysician.id,
+      date: new Date(selectedYear, selectedMonth, selectedDay).toISOString(),
+      time: selectedTime,
+      patientId: selectedPatientId,
+      address: meetingAddress,
+      notes: physicianNotes,
+    };
+    
+    const encodedData = encodeURIComponent(JSON.stringify(appointmentData));
     
     try {
       const response = await stripeApi.createPaymentSession({
         patientUserId: user.id,
         customerEmail: user.email || "",
         sessionPrice: sessionPrice,
+        successUrl: `${baseUrl}/payment-success?data=${encodedData}`,
+        cancelUrl: `${baseUrl}/payment-cancelled`,
       });
       
       // Redirect to Stripe checkout
-      if (response.url) {
-        window.location.href = response.url;
+      if (response.redirectUrl) {
+        window.location.href = response.redirectUrl;
       } else {
         toast.error("Failed to create payment session");
       }
