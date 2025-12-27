@@ -58,6 +58,19 @@ export interface PhysicianSendDto {
   clinicalAddress: string;
   specializationName: string;
   image?: string;
+  sessionPrice?: number;
+}
+
+export interface StripePaymentDto {
+  patientUserId: string;
+  customerEmail: string;
+  sessionPrice: number;
+  successUrl: string;
+  cancelUrl: string;
+}
+
+export interface StripePaymentResponse {
+  redirectUrl: string;
 }
 
 export interface PhysicianCreateDto {
@@ -473,6 +486,10 @@ export const physicianScheduleApi = {
   },
 };
 
+    if (!res.ok) throw new Error("Failed to add feedback");
+  },
+};
+
 // Payment and Billing API
 export interface InvoiceDto {
   Id: number;
@@ -560,6 +577,18 @@ export const paymentApi = {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch payment history");
+    return res.json();
+  },
+};
+
+export const stripeApi = {
+  createPaymentSession: async (data: StripePaymentDto): Promise<StripePaymentResponse> => {
+    const res = await fetch(`${BASE_URL}/stripe`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error("Failed to create payment session");
     return res.json();
   },
 };
@@ -697,6 +726,9 @@ export const analyticsApi = {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch patient demographics");
+=======
+    if (!res.ok) throw new Error("Failed to create payment session");
+>>>>>>> 8e3dd132ce188140c0c190d5235574c8f9681e7a
     return res.json();
   },
 };

@@ -14,6 +14,8 @@ import Patients from "./pages/Patients";
 import Specializations from "./pages/Specializations";
 import PatientProfile from "./pages/PatientProfile";
 import PhysicianProfile from "./pages/PhysicianProfile";
+import PaymentSuccess from "./pages/PaymentSuccess";
+import PaymentCancelled from "./pages/PaymentCancelled";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import Billing from "./pages/Billing";
@@ -173,6 +175,22 @@ const AppRoutes = () => {
             <MainLayout>
               <PhysicianProfile />
             </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/payment-success"
+        element={
+          <ProtectedRoute>
+            <PaymentSuccess />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/payment-cancelled"
+        element={
+          <ProtectedRoute>
+            <PaymentCancelled />
           </ProtectedRoute>
         }
       />
