@@ -3,15 +3,17 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Eye, ZoomIn, ZoomOut, RotateCcw, Brain, FileImage } from "lucide-react";
+import { Eye, Brain, FileImage, ZoomIn, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { dicomApi, DicomUploadResponse, DicomAnalysisResult, DicomUploadRequest } from "@/lib/api";
 import { DicomUploadForm } from "@/components/dicom/DicomUploadForm";
+import { DicomImageViewer } from "@/components/dicom/DicomImageViewer";
 
 export default function DicomViewer() {
   const [uploadedFiles, setUploadedFiles] = useState<DicomUploadResponse[]>([]);
   const [selectedFile, setSelectedFile] = useState<DicomUploadResponse | null>(null);
+  const [currentDicomFile, setCurrentDicomFile] = useState<File | null>(null);
   const [analysis, setAnalysis] = useState<DicomAnalysisResult | null>(null);
 
   // Fetch existing analyses
@@ -48,7 +50,12 @@ export default function DicomViewer() {
   });
 
   const handleUpload = (data: DicomUploadRequest) => {
+    setCurrentDicomFile(data.file);
     uploadMutation.mutate(data);
+  };
+
+  const handleFileSelect = (file: File | null) => {
+    setCurrentDicomFile(file);
   };
 
   const handleAnalysis = async () => {
@@ -65,6 +72,7 @@ export default function DicomViewer() {
         <DicomUploadForm 
           onUpload={handleUpload}
           isUploading={uploadMutation.isPending}
+          onFileSelect={handleFileSelect}
         />
 
         {/* Viewer */}
@@ -72,40 +80,21 @@ export default function DicomViewer() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold">DICOM Viewer</h3>
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline">
-                  <ZoomIn className="w-4 h-4" />
-                </Button>
-                <Button size="sm" variant="outline">
-                  <ZoomOut className="w-4 h-4" />
-                </Button>
-                <Button size="sm" variant="outline">
-                  <RotateCcw className="w-4 h-4" />
-                </Button>
-              </div>
+              {selectedFile && (
+                <Badge variant="outline">{selectedFile.fileName}</Badge>
+              )}
             </div>
 
-            <div className="aspect-square bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border">
-              {selectedFile ? (
-                <div className="text-center">
-                  <FileImage className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-                  <p className="font-medium">{selectedFile.fileName}</p>
-                  <p className="text-sm text-muted-foreground">
-                    DICOM image loaded - Interactive viewing available
-                  </p>
-                  <div className="flex justify-center gap-2 mt-4">
-                    <Badge variant="secondary">Windowing</Badge>
-                    <Badge variant="secondary">MPR</Badge>
-                    <Badge variant="secondary">3D Render</Badge>
-                  </div>
-                </div>
-              ) : (
+            {currentDicomFile ? (
+              <DicomImageViewer file={currentDicomFile} />
+            ) : (
+              <div className="aspect-square bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border">
                 <div className="text-center text-muted-foreground">
                   <Eye className="w-16 h-16 mx-auto mb-4" />
                   <p>Select a DICOM file to view</p>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Uploaded Files List */}
             {uploadedFiles.length > 0 && (
