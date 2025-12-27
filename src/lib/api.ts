@@ -370,6 +370,18 @@ export interface MedicineDto {
   usageTimes: string[];
 }
 
+export interface DiseaseSearchResult {
+  icd: string;
+  name: string;
+}
+
+export interface DiagnosisCreateDto {
+  patientId: number;
+  icd: string;
+  diagnosisDate: string;
+  recoverdDate?: string;
+}
+
 export const patientMedicalApi = {
   getDiseases: async (patientId: number): Promise<DiseaseDto[]> => {
     const res = await fetch(`${BASE_URL}/patient/disease/${patientId}`, {
@@ -385,6 +397,23 @@ export const patientMedicalApi = {
     });
     if (!res.ok) throw new Error("Failed to fetch patient medicines");
     return res.json();
+  },
+
+  searchDiseases: async (name: string): Promise<DiseaseSearchResult[]> => {
+    const res = await fetch(`${BASE_URL}/Diseases/search?name=${encodeURIComponent(name)}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to search diseases");
+    return res.json();
+  },
+
+  addDiagnosis: async (patientId: number, data: DiagnosisCreateDto): Promise<void> => {
+    const res = await fetch(`${BASE_URL}/patient/disease/${patientId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error("Failed to add diagnosis");
   },
 };
 
