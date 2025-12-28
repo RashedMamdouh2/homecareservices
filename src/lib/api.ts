@@ -450,6 +450,7 @@ export const physicianScheduleApi = {
   getFreeAppointments: async (physicianId: number, date: string): Promise<string[]> => {
     const res = await fetch(`${BASE_URL}/Physician/FreeAppointments/Day/${physicianId}?date=${date}`, {
       headers: getAuthHeaders(),
+      cache: "no-store",
     });
     if (!res.ok) throw new Error("Failed to fetch free appointments");
     return res.json();
