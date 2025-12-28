@@ -24,6 +24,9 @@ import {
   MessageSquare,
   Star,
   DollarSign,
+  Users,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 export default function PhysicianProfile() {
@@ -32,6 +35,7 @@ export default function PhysicianProfile() {
   const { user, isPhysician, isPatient } = useAuth();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [bookingOpen, setBookingOpen] = useState(false);
+  const [patientsPage, setPatientsPage] = useState(1);
 
   // Use current user's physicianId if they're a physician viewing their own profile
   const physicianId = id ? parseInt(id) : user?.physicianId;
@@ -57,6 +61,12 @@ export default function PhysicianProfile() {
     queryKey: ["physician-feedbacks", physicianId],
     queryFn: () => physicianScheduleApi.getFeedbacks(physicianId!),
     enabled: !!physicianId,
+  });
+
+  const { data: myPatientsData, isLoading: loadingPatients } = useQuery({
+    queryKey: ["physician-patients", physicianId, patientsPage],
+    queryFn: () => physiciansApi.getMyPatients(physicianId!, patientsPage),
+    enabled: !!physicianId && isOwnProfile,
   });
 
   if (loadingPhysician) {
@@ -294,6 +304,93 @@ export default function PhysicianProfile() {
           </ScrollArea>
         </Card>
       </div>
+
+      {/* My Patients Section - Only visible to physician viewing their own profile */}
+      {isOwnProfile && (
+        <Card className="p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Users className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-card-foreground">My Patients</h3>
+              <p className="text-sm text-muted-foreground">
+                Patients you have appointments with
+              </p>
+            </div>
+          </div>
+
+          {loadingPatients ? (
+            <div className="flex justify-center py-8">
+              <LoadingSpinner />
+            </div>
+          ) : !myPatientsData?.patients || myPatientsData.patients.length === 0 ? (
+            <div className="text-center py-8">
+              <Users className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+              <p className="text-muted-foreground">No patients yet</p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+                {myPatientsData.patients.map((patient) => (
+                  <div
+                    key={patient.id}
+                    onClick={() => navigate(`/patients/${patient.id}`)}
+                    className="p-4 rounded-lg bg-muted/50 border border-border hover:bg-muted hover:border-primary/30 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden flex-shrink-0">
+                        {getAssetUrl(patient.image) ? (
+                          <img
+                            src={getAssetUrl(patient.image)!}
+                            alt={patient.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <User className="w-6 h-6 text-primary" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate">{patient.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {patient.city}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Pagination */}
+              {myPatientsData.totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 mt-6">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPatientsPage((p) => Math.max(1, p - 1))}
+                    disabled={patientsPage === 1}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Previous
+                  </Button>
+                  <span className="text-sm text-muted-foreground px-4">
+                    Page {myPatientsData.currentPage} of {myPatientsData.totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPatientsPage((p) => p + 1)}
+                    disabled={patientsPage >= myPatientsData.totalPages}
+                  >
+                    Next
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </Card>
+      )}
 
       {/* Booking Dialog */}
       <BookAppointmentDialog open={bookingOpen} onOpenChange={setBookingOpen} />
