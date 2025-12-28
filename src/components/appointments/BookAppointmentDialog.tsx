@@ -216,9 +216,21 @@ export function BookAppointmentDialog({
     const baseUrl = window.location.origin;
     
     // Build appointment data to pass via URL params for success callback
+    // Parse the selected time to include in the date
+    const [hours, minutes, seconds] = selectedTime.split(":").map(Number);
+    const appointmentDateTime = new Date(selectedYear, selectedMonth, selectedDay, hours, minutes, seconds || 0);
+    
+    // Format as local date string to preserve the correct date
+    const year = appointmentDateTime.getFullYear();
+    const month = String(appointmentDateTime.getMonth() + 1).padStart(2, "0");
+    const day = String(appointmentDateTime.getDate()).padStart(2, "0");
+    const hour = String(appointmentDateTime.getHours()).padStart(2, "0");
+    const min = String(appointmentDateTime.getMinutes()).padStart(2, "0");
+    const sec = String(appointmentDateTime.getSeconds()).padStart(2, "0");
+    
     const appointmentData = {
       physicianId: selectedPhysician.id,
-      date: new Date(selectedYear, selectedMonth, selectedDay).toISOString(),
+      date: `${year}-${month}-${day}T${hour}:${min}:${sec}`,
       time: selectedTime,
       patientId: selectedPatientId,
       address: meetingAddress,
@@ -258,14 +270,31 @@ export function BookAppointmentDialog({
       return;
     }
 
-    const appointmentDate = new Date(
+    // Parse start time
+    const [hours, minutes, seconds] = selectedTime.split(":").map(Number);
+    
+    // Create appointment date with the start time included (local time)
+    const appointmentDateTime = new Date(
       selectedYear,
       selectedMonth,
-      selectedDay
-    ).toISOString();
+      selectedDay,
+      hours,
+      minutes,
+      seconds || 0
+    );
+    
+    // Format as ISO string but preserve local date by manually constructing
+    const year = appointmentDateTime.getFullYear();
+    const month = String(appointmentDateTime.getMonth() + 1).padStart(2, "0");
+    const day = String(appointmentDateTime.getDate()).padStart(2, "0");
+    const hour = String(appointmentDateTime.getHours()).padStart(2, "0");
+    const min = String(appointmentDateTime.getMinutes()).padStart(2, "0");
+    const sec = String(appointmentDateTime.getSeconds()).padStart(2, "0");
+    
+    // Create ISO-like string that preserves local date/time
+    const appointmentDate = `${year}-${month}-${day}T${hour}:${min}:${sec}`;
     
     // Calculate end time (1 hour after start time)
-    const [hours, minutes, seconds] = selectedTime.split(":").map(Number);
     const endHours = (hours + 1).toString().padStart(2, "0");
     const endTime = `${endHours}:${minutes.toString().padStart(2, "0")}:${(seconds || 0).toString().padStart(2, "0")}`;
 
