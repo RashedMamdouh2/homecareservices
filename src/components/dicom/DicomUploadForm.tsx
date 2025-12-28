@@ -19,10 +19,12 @@ interface DicomUploadFormProps {
   onUpload: (data: DicomUploadRequest) => void;
   isUploading: boolean;
   onFileSelect?: (file: File | null) => void;
+  onMultipleFiles?: (files: File[]) => void;
 }
 
-export function DicomUploadForm({ onUpload, isUploading, onFileSelect }: DicomUploadFormProps) {
+export function DicomUploadForm({ onUpload, isUploading, onFileSelect, onMultipleFiles }: DicomUploadFormProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [patientId, setPatientId] = useState<string>("");
   const [physicianId, setPhysicianId] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
@@ -40,19 +42,28 @@ export function DicomUploadForm({ onUpload, isUploading, onFileSelect }: DicomUp
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
-    const dicomFile = files.find(file =>
+    const dicomFiles = files.filter(file =>
       file.name.toLowerCase().endsWith('.dcm') ||
       file.name.toLowerCase().endsWith('.dicom') ||
       file.type === 'application/dicom'
     );
 
-    if (!dicomFile) {
-      toast.error("Please select a valid DICOM file (.dcm, .dicom)");
+    if (dicomFiles.length === 0) {
+      toast.error("Please select valid DICOM file(s) (.dcm, .dicom)");
       return;
     }
 
-    setSelectedFile(dicomFile);
-    onFileSelect?.(dicomFile);
+    // If multiple files selected, use onMultipleFiles
+    if (dicomFiles.length > 1 && onMultipleFiles) {
+      setSelectedFiles(dicomFiles);
+      setSelectedFile(dicomFiles[0]);
+      onMultipleFiles(dicomFiles);
+      toast.success(`${dicomFiles.length} DICOM files selected for series viewing`);
+    } else {
+      setSelectedFile(dicomFiles[0]);
+      setSelectedFiles([dicomFiles[0]]);
+      onFileSelect?.(dicomFiles[0]);
+    }
   };
 
   const handleSubmit = () => {
@@ -78,6 +89,7 @@ export function DicomUploadForm({ onUpload, isUploading, onFileSelect }: DicomUp
 
     // Reset form after upload
     setSelectedFile(null);
+    setSelectedFiles([]);
     setNotes("");
     // Reset file input
     const fileInput = document.getElementById('dicom-upload') as HTMLInputElement;
@@ -163,10 +175,17 @@ export function DicomUploadForm({ onUpload, isUploading, onFileSelect }: DicomUp
             onChange={handleFileChange}
             className="hidden"
             id="dicom-upload"
+            multiple
           />
           <label htmlFor="dicom-upload" className="block">
             <div className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors">
-              {selectedFile ? (
+              {selectedFiles.length > 1 ? (
+                <div className="flex flex-col items-center gap-1">
+                  <FileImage className="w-5 h-5 text-primary" />
+                  <span className="font-medium">{selectedFiles.length} DICOM files selected</span>
+                  <span className="text-xs text-muted-foreground">Series mode enabled</span>
+                </div>
+              ) : selectedFile ? (
                 <div className="flex items-center justify-center gap-2">
                   <FileImage className="w-5 h-5 text-primary" />
                   <span className="font-medium">{selectedFile.name}</span>
@@ -174,7 +193,8 @@ export function DicomUploadForm({ onUpload, isUploading, onFileSelect }: DicomUp
               ) : (
                 <div className="text-muted-foreground">
                   <Upload className="w-6 h-6 mx-auto mb-2" />
-                  <p>Click to select DICOM file</p>
+                  <p>Click to select DICOM file(s)</p>
+                  <p className="text-xs mt-1">Select multiple files for slice scrolling</p>
                 </div>
               )}
             </div>
