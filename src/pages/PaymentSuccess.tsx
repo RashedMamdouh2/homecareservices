@@ -61,16 +61,13 @@ export default function PaymentSuccess() {
             const endHours = (hours + 1).toString().padStart(2, "0");
             const endTime = `${endHours}:${minutes.toString().padStart(2, "0")}:${(seconds || 0).toString().padStart(2, "0")}`;
 
-            // Create full datetime strings with timezone
-            const datePart = appointmentData.date.split('T')[0]; // Extract date part
-            const appointmentDate = `${datePart}T${appointmentData.time}.000Z`;
-            const startTime = `${datePart}T${appointmentData.time}.000Z`;
-            const endTimeFull = `${datePart}T${endTime}.000Z`;
+            // Send data in the format expected by backend
+            const datePart = appointmentData.date.split('T')[0]; // Extract date part only
 
             bookMutation.mutate({
-              appointmentDate,
-              startTime,
-              endTime: endTimeFull,
+              appointmentDate: datePart, // Just date part
+              startTime: appointmentData.time, // Just time part
+              endTime: endTime, // Just time part
               patientId: parseInt(appointmentData.patientId),
               physicianId: appointmentData.physicianId,
               meetingAddress: appointmentData.address,
