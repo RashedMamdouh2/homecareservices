@@ -167,7 +167,7 @@ export const appointmentsApi = {
     const res = await fetch(`${BASE_URL}/Appointments/BookAppointment`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-      body: JSON.stringify({ AppointmentToBookDto: data }),
+      body: JSON.stringify(data),
     });
     if (!res.ok) {
       const errorText = await res.text();
@@ -179,7 +179,7 @@ export const appointmentsApi = {
     const res = await fetch(`${BASE_URL}/Appointments/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-      body: JSON.stringify({ AppointmentToBookDto: data }),
+      body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error("Failed to update appointment");
   },
