@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Dialog,
@@ -23,32 +23,14 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import {
-  ZoomIn,
-  ZoomOut,
-  RotateCw,
-  RotateCcw,
-  Contrast,
-  Sun,
-  Move,
-  Square,
-  Circle,
-  Ruler,
-  Save,
   Download,
   Upload,
   Eye,
-  EyeOff,
-  Settings,
-  Play,
-  Pause,
-  SkipBack,
-  SkipForward,
-  Volume2,
-  VolumeX,
+  ExternalLink,
+  Globe,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { dicomApi, DicomAnalysisResult, BASE_URL, getAuthHeaders } from '@/lib/api';
-import dicomParser from 'dicom-parser';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface DicomViewerProps {
@@ -66,22 +48,8 @@ export function DicomViewer({
 }: DicomViewerProps) {
   const { user, isPatient, isAdmin } = useAuth();
   const queryClient = useQueryClient();
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [currentDicomId, setCurrentDicomId] = useState<string | null>(dicomId || null);
-  const [activeTool, setActiveTool] = useState<string>('pan');
-  const [brightness, setBrightness] = useState(0);
-  const [contrast, setContrast] = useState(0);
-  const [zoom, setZoom] = useState(1);
-  const [rotation, setRotation] = useState(0);
-  const [showAnnotations, setShowAnnotations] = useState(true);
-  const [annotationMode, setAnnotationMode] = useState(false);
-  const [currentSlice, setCurrentSlice] = useState(0);
-  const [totalSlices, setTotalSlices] = useState(1);
-  const [viewMode, setViewMode] = useState<'2d' | '3d' | 'mpr'>('2d');
-
-  // DICOM viewer state
-  const [isInitialized, setIsInitialized] = useState(false);
 
   // Fetch DICOM files for patient
   const { data: dicomFiles, isLoading: loadingDicoms } = useQuery({
@@ -152,167 +120,159 @@ export function DicomViewer({
     }
   };
 
-  // DICOM viewer controls
-  const handleZoomIn = () => setZoom(prev => Math.min(prev * 1.2, 5));
-  const handleZoomOut = () => setZoom(prev => Math.max(prev / 1.2, 0.1));
-  const handleRotateClockwise = () => setRotation(prev => (prev + 90) % 360);
-  const handleRotateCounterClockwise = () => setRotation(prev => (prev - 90 + 360) % 360);
-  const handleReset = () => {
-    setZoom(1);
-    setRotation(0);
-    setBrightness(0);
-    setContrast(0);
-  };
+  const validateDicomFile = async (blob: Blob): Promise<boolean> => {
+    try {
+      const arrayBuffer = await blob.slice(0, 132).arrayBuffer(); // Read first 132 bytes (DICOM header)
+      const uint8Array = new Uint8Array(arrayBuffer);
 
-  const handleSliceChange = (direction: 'prev' | 'next') => {
-    if (direction === 'prev') {
-      setCurrentSlice(prev => Math.max(prev - 1, 0));
-    } else {
-      setCurrentSlice(prev => Math.min(prev + 1, totalSlices - 1));
+      // Check for DICOM magic number (DICM at offset 128)
+      const dicmSignature = String.fromCharCode(...uint8Array.slice(128, 132));
+      return dicmSignature === 'DICM';
+    } catch (error) {
+      console.error('Error validating DICOM file:', error);
+      return false;
     }
   };
 
-  const handleAnalyze = () => {
-    if (currentDicomId) {
-      analyzeMutation.mutate(currentDicomId);
-    }
-  };
+  const handleUploadToIDC = async () => {
+    if (!currentDicomId) return;
 
-  // Initialize DICOM viewer
-  useEffect(() => {
-    const initializeViewer = () => {
-      if (isInitialized) return;
-      setIsInitialized(true);
-    };
+    try {
+      toast.info('Preparing DICOM file for IDC upload...');
 
-    if (open) {
-      initializeViewer();
-    }
-  }, [open, isInitialized]);
+      // Download the DICOM file
+      const response = await fetch(`${BASE_URL}/Dicom/download/${currentDicomId}`, {
+        headers: getAuthHeaders(),
+      });
 
-  // Load DICOM image when file is selected
-  useEffect(() => {
-    const loadDicomImage = async () => {
-      if (!currentDicomId || !canvasRef.current) return;
-
-      try {
-        // Download DICOM file
-        const dicomBlob = await dicomApi.downloadDicom(currentDicomId);
-        const dicomArrayBuffer = await dicomBlob.arrayBuffer();
-
-        // Parse DICOM data
-        const dicomDataSet = dicomParser.parseDicom(new Uint8Array(dicomArrayBuffer));
-
-        // Extract image information
-        const rows = dicomDataSet.uint16('x0028', 'x0010') || 512;
-        const cols = dicomDataSet.uint16('x0028', 'x0011') || 512;
-        const bitsAllocated = dicomDataSet.uint16('x0028', 'x0100') || 16;
-        const bitsStored = dicomDataSet.uint16('x0028', 'x0101') || 16;
-        const highBit = dicomDataSet.uint16('x0028', 'x0102') || 15;
-        const pixelRepresentation = dicomDataSet.uint16('x0028', 'x0103') || 0; // 0 = unsigned, 1 = signed
-
-        // Get pixel data
-        const pixelDataElement = dicomDataSet.elements.x7fe00010;
-        if (!pixelDataElement) {
-          throw new Error('No pixel data found in DICOM file');
-        }
-
-        // Extract pixel data
-        const pixelData = new Uint8Array(dicomArrayBuffer, pixelDataElement.dataOffset, pixelDataElement.length);
-
-        // Handle different bit depths and signed/unsigned
-        let processedPixelData: Uint16Array | Int16Array;
-        if (bitsAllocated === 16) {
-          if (pixelRepresentation === 1) {
-            processedPixelData = new Int16Array(pixelData.buffer, pixelData.byteOffset, pixelData.length / 2);
-          } else {
-            processedPixelData = new Uint16Array(pixelData.buffer, pixelData.byteOffset, pixelData.length / 2);
-          }
-        } else {
-          // 8-bit data
-          processedPixelData = new Uint16Array(pixelData.length);
-          for (let i = 0; i < pixelData.length; i++) {
-            processedPixelData[i] = pixelData[i];
-          }
-        }
-
-        // Get windowing information
-        let windowCenter = dicomDataSet.floatString('x0028', 'x1050');
-        let windowWidth = dicomDataSet.floatString('x0028', 'x1051');
-
-        // Default windowing if not provided
-        if (!windowCenter || !windowWidth) {
-          let minVal = Infinity;
-          let maxVal = -Infinity;
-          for (let i = 0; i < processedPixelData.length; i++) {
-            const val = processedPixelData[i];
-            if (val < minVal) minVal = val;
-            if (val > maxVal) maxVal = val;
-          }
-          windowCenter = (minVal + maxVal) / 2;
-          windowWidth = maxVal - minVal;
-        }
-
-        // Create canvas for rendering
-        const canvas = canvasRef.current;
-        canvas.width = cols;
-        canvas.height = rows;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-
-        // Create ImageData
-        const imageData = ctx.createImageData(cols, rows);
-        const data = imageData.data;
-
-        // Apply windowing and convert to RGBA
-        const windowMin = windowCenter - windowWidth / 2;
-        const windowMax = windowCenter + windowWidth / 2;
-
-        for (let i = 0; i < processedPixelData.length; i++) {
-          const pixelValue = processedPixelData[i];
-
-          // Apply windowing
-          let normalizedValue: number;
-          if (pixelValue <= windowMin) {
-            normalizedValue = 0;
-          } else if (pixelValue >= windowMax) {
-            normalizedValue = 255;
-          } else {
-            normalizedValue = ((pixelValue - windowMin) / (windowMax - windowMin)) * 255;
-          }
-
-          // Apply brightness and contrast adjustments
-          normalizedValue = ((normalizedValue - 128) * (contrast / 100 + 1)) + 128 + brightness;
-          normalizedValue = Math.max(0, Math.min(255, normalizedValue));
-
-          const pixelIndex = i * 4;
-          data[pixelIndex] = normalizedValue;     // R
-          data[pixelIndex + 1] = normalizedValue; // G
-          data[pixelIndex + 2] = normalizedValue; // B
-          data[pixelIndex + 3] = 255;             // A
-        }
-
-        // Render the image
-        ctx.putImageData(imageData, 0, 0);
-
-        // Apply zoom and rotation using CSS transforms
-        canvas.style.transform = `scale(${zoom}) rotate(${rotation}deg)`;
-        canvas.style.transformOrigin = 'center center';
-
-        // Set total slices
-        setTotalSlices(1);
-        setCurrentSlice(0);
-
-        toast.success('DICOM image loaded successfully');
-
-      } catch (error) {
-        console.error('Failed to load DICOM image:', error);
-        toast.error('Failed to load DICOM image. The file may be corrupted or in an unsupported format.');
+      if (!response.ok) {
+        throw new Error('Failed to download DICOM file');
       }
-    };
 
-    loadDicomImage();
-  }, [currentDicomId, brightness, contrast, zoom, rotation]);
+      const dicomBlob = await response.blob();
+
+      // Validate the DICOM file
+      const isValidDicom = await validateDicomFile(dicomBlob);
+      if (!isValidDicom) {
+        toast.error('Downloaded file is not a valid DICOM file. It may have been corrupted during upload.');
+        return;
+      }
+
+      // Create FormData for IDC upload
+      const formData = new FormData();
+      formData.append('file', dicomBlob, `dicom_${currentDicomId}.dcm`);
+
+      // Note: IDC doesn't have a direct upload API, so we'll download and instruct user
+      const downloadUrl = URL.createObjectURL(dicomBlob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `dicom_${currentDicomId}.dcm`;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      URL.revokeObjectURL(downloadUrl);
+
+      toast.success('DICOM file downloaded! Upload it to the IDC viewer that opened.');
+
+      // Open IDC viewer
+      window.open('https://viewer.imaging.datacommons.cancer.gov/viewer/', '_blank');
+
+    } catch (error) {
+      console.error('Failed to prepare DICOM file for IDC:', error);
+      toast.error('Failed to prepare DICOM file for IDC upload');
+    }
+  };
+
+  const handleUploadToOHIF = async () => {
+    if (!currentDicomId) return;
+
+    try {
+      toast.info('Preparing DICOM file for OHIF viewer...');
+
+      // For OHIF demo, we'll download the file since they don't have direct upload API
+      const response = await fetch(`${BASE_URL}/Dicom/download/${currentDicomId}`, {
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to download DICOM file');
+      }
+
+      const dicomBlob = await response.blob();
+
+      const isValidDicom = await validateDicomFile(dicomBlob);
+      if (!isValidDicom) {
+        toast.error('Downloaded file is not a valid DICOM file.');
+        return;
+      }
+
+      const downloadUrl = URL.createObjectURL(dicomBlob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `dicom_${currentDicomId}.dcm`;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      URL.revokeObjectURL(downloadUrl);
+
+      toast.success('DICOM file downloaded! Upload it to the OHIF viewer that opened.');
+
+      // Open OHIF viewer
+      window.open('https://ohif-viewer.vercel.app/', '_blank');
+
+    } catch (error) {
+      console.error('Failed to prepare DICOM file for OHIF:', error);
+      toast.error('Failed to prepare DICOM file for OHIF viewer');
+    }
+  };
+
+  const handleUploadToRadiopaedia = async () => {
+    if (!currentDicomId) return;
+
+    try {
+      toast.info('Preparing DICOM file for Radiopaedia...');
+
+      const response = await fetch(`${BASE_URL}/Dicom/download/${currentDicomId}`, {
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to download DICOM file');
+      }
+
+      const dicomBlob = await response.blob();
+
+      const isValidDicom = await validateDicomFile(dicomBlob);
+      if (!isValidDicom) {
+        toast.error('Downloaded file is not a valid DICOM file.');
+        return;
+      }
+
+      const downloadUrl = URL.createObjectURL(dicomBlob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `dicom_${currentDicomId}.dcm`;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      URL.revokeObjectURL(downloadUrl);
+
+      toast.success('DICOM file downloaded! Upload it to Radiopaedia.org for professional viewing.');
+
+      // Open Radiopaedia
+      window.open('https://www.radiopaedia.org/viewer', '_blank');
+
+    } catch (error) {
+      console.error('Failed to prepare DICOM file for Radiopaedia:', error);
+      toast.error('Failed to prepare DICOM file for Radiopaedia');
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -404,156 +364,99 @@ export function DicomViewer({
 
           {/* Main Viewer Area */}
           <div className="flex-1 space-y-4">
-            {/* Viewer Controls */}
+            {/* Third-Party Service Integration */}
             <Card className="p-4">
-              <div className="flex flex-wrap items-center gap-2">
-                {/* View Mode */}
-                <Select value={viewMode} onValueChange={(value: '2d' | '3d' | 'mpr') => setViewMode(value)}>
-                  <SelectTrigger className="w-24">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="2d">2D View</SelectItem>
-                    <SelectItem value="3d">3D View</SelectItem>
-                    <SelectItem value="mpr">MPR</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                {/* Tool Selection */}
-                <div className="flex items-center gap-1 border rounded-md p-1">
-                  <Button
-                    variant={activeTool === 'pan' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setActiveTool('pan')}
-                  >
-                    <Move className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant={activeTool === 'zoom' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setActiveTool('zoom')}
-                  >
-                    <ZoomIn className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant={activeTool === 'contrast' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setActiveTool('contrast')}
-                  >
-                    <Contrast className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant={annotationMode ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setAnnotationMode(!annotationMode)}
-                  >
-                    <Square className="w-4 h-4" />
-                  </Button>
-                </div>
-
-                {/* Zoom Controls */}
-                <Button variant="outline" size="sm" onClick={handleZoomOut}>
-                  <ZoomOut className="w-4 h-4" />
-                </Button>
-                <span className="text-sm min-w-[60px] text-center">
-                  {Math.round(zoom * 100)}%
-                </span>
-                <Button variant="outline" size="sm" onClick={handleZoomIn}>
-                  <ZoomIn className="w-4 h-4" />
-                </Button>
-
-                {/* Rotation Controls */}
-                <Button variant="outline" size="sm" onClick={handleRotateCounterClockwise}>
-                  <RotateCcw className="w-4 h-4" />
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleRotateClockwise}>
-                  <RotateCw className="w-4 h-4" />
-                </Button>
-
-                {/* Reset */}
-                <Button variant="outline" size="sm" onClick={handleReset}>
-                  Reset
-                </Button>
-
-                {/* Annotations Toggle */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowAnnotations(!showAnnotations)}
-                >
-                  {showAnnotations ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                </Button>
+              <h3 className="font-semibold mb-3">Professional DICOM Viewers</h3>
+              <div className="text-sm text-muted-foreground mb-4">
+                Upload your DICOM files directly to professional medical imaging platforms for expert analysis and diagnosis.
               </div>
+              <div className="space-y-3">
+                <Button
+                  onClick={handleUploadToRadiopaedia}
+                  disabled={!currentDicomId}
+                  className="w-full"
+                  variant="default"
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload to Radiopaedia
+                </Button>
 
-              {/* Slice Navigation (for multi-slice images) */}
-              {totalSlices > 1 && (
-                <div className="flex items-center gap-2 mt-2">
+                <div className="text-sm font-medium text-center">Medical Research Platforms:</div>
+                <div className="grid grid-cols-1 gap-2">
                   <Button
+                    onClick={handleUploadToIDC}
+                    disabled={!currentDicomId}
                     variant="outline"
-                    size="sm"
-                    onClick={() => handleSliceChange('prev')}
-                    disabled={currentSlice === 0}
+                    className="justify-start"
                   >
-                    <SkipBack className="w-4 h-4" />
+                    <Globe className="w-4 h-4 mr-2" />
+                    Upload to IDC Cancer Viewer
                   </Button>
-                  <span className="text-sm">
-                    Slice {currentSlice + 1} of {totalSlices}
-                  </span>
                   <Button
+                    onClick={handleUploadToOHIF}
+                    disabled={!currentDicomId}
                     variant="outline"
-                    size="sm"
-                    onClick={() => handleSliceChange('next')}
-                    disabled={currentSlice === totalSlices - 1}
+                    className="justify-start"
                   >
-                    <SkipForward className="w-4 h-4" />
+                    <Globe className="w-4 h-4 mr-2" />
+                    Upload to OHIF Viewer
                   </Button>
                 </div>
-              )}
 
-              {/* Brightness/Contrast Controls */}
-              <div className="flex items-center gap-4 mt-2">
-                <div className="flex items-center gap-2">
-                  <Label className="text-sm">Brightness:</Label>
-                  <Input
-                    type="range"
-                    min="-100"
-                    max="100"
-                    value={brightness}
-                    onChange={(e) => setBrightness(Number(e.target.value))}
-                    className="w-20"
-                  />
-                  <span className="text-sm w-8">{brightness}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Label className="text-sm">Contrast:</Label>
-                  <Input
-                    type="range"
-                    min="-100"
-                    max="100"
-                    value={contrast}
-                    onChange={(e) => setContrast(Number(e.target.value))}
-                    className="w-20"
-                  />
-                  <span className="text-sm w-8">{contrast}</span>
+                <div className="text-sm font-medium text-center">Additional Tools:</div>
+                <div className="grid grid-cols-1 gap-2">
+                  <Button
+                    onClick={() => window.open('https://www.weasis.org/', '_blank')}
+                    variant="outline"
+                    className="justify-start"
+                  >
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Weasis (Desktop DICOM Viewer)
+                  </Button>
+                  <Button
+                    onClick={() => window.open('https://dicomviewer.online/', '_blank')}
+                    variant="outline"
+                    className="justify-start"
+                  >
+                    <Globe className="w-4 h-4 mr-2" />
+                    Online DICOM Viewer
+                  </Button>
                 </div>
               </div>
             </Card>
 
-            {/* DICOM Canvas */}
+            {/* DICOM Viewer Placeholder */}
             <Card className="flex-1 p-4">
-              <div className="w-full h-full bg-black rounded-lg overflow-hidden relative">
+              <div className="w-full h-full bg-gray-50 rounded-lg overflow-hidden relative min-h-[500px] flex items-center justify-center">
                 {currentDicomId ? (
-                  <canvas
-                    ref={canvasRef}
-                    className="w-full h-full"
-                  />
-                ) : (
-                  <div className="flex items-center justify-center h-full text-white">
-                    <div className="text-center">
-                      <Eye className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                      <p className="text-lg">No DICOM file selected</p>
-                      <p className="text-sm opacity-75">Upload or select a DICOM file to view</p>
+                  <div className="text-center max-w-md">
+                    <Eye className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                    <h3 className="text-lg font-semibold mb-2">DICOM File Ready</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Use the third-party viewers above to view your DICOM file professionally.
+                      The file will be validated before download.
+                    </p>
+                    <div className="text-sm text-muted-foreground space-y-1">
+                      <div><strong>File:</strong> {dicomDetails?.fileName || `dicom_${currentDicomId}.dcm`}</div>
+                      {dicomDetails?.fileSize && (
+                        <div><strong>Size:</strong> {(dicomDetails.fileSize / 1024 / 1024).toFixed(2)} MB</div>
+                      )}
+                      {dicomDetails?.modality && (
+                        <div><strong>Modality:</strong> {dicomDetails.modality}</div>
+                      )}
                     </div>
+                    <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                      <p className="text-sm text-blue-800">
+                        <strong>Tip:</strong> Professional DICOM viewers provide better image quality,
+                        measurements, and diagnostic tools than web viewers.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center">
+                    <Eye className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                    <p className="text-lg text-gray-500">No DICOM file selected</p>
+                    <p className="text-sm text-gray-400">Upload or select a DICOM file to view</p>
                   </div>
                 )}
               </div>
