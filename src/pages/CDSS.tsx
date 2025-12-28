@@ -90,7 +90,7 @@ export default function CDSSPage() {
     }
   };
 
-  const getSeverityColor = (confidence: number): string => {
+  const getSeverityColor = (confidence: number): "default" | "destructive" | "secondary" | "outline" => {
     if (confidence > 0.8) return 'destructive';
     if (confidence > 0.6) return 'secondary';
     return 'default';

@@ -551,6 +551,13 @@ export interface PaymentHistoryDto {
   description?: string;
 }
 
+export interface PaymentConfirmationDto {
+  paymentIntentId: string;
+  invoiceId?: number;
+  status?: string;
+  amount?: number;
+}
+
 export const paymentApi = {
   // Get invoices for current user
   getInvoices: async (): Promise<InvoiceDto[]> => {
