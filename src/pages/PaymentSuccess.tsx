@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { appointmentsApi } from "@/lib/api";
+import { appointmentsApi, physicianScheduleApi } from "@/lib/api";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
@@ -30,8 +30,9 @@ export default function PaymentSuccess() {
       toast.success("Appointment booked successfully!");
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
     },
-    onError: () => {
-      toast.error("Payment successful but failed to book appointment. Please contact support.");
+    onError: (error: Error) => {
+      console.error("Appointment booking failed:", error);
+      toast.error(`Payment successful but failed to book appointment: ${error?.message || "Please contact support."}`);
     },
   });
 
@@ -41,25 +42,47 @@ export default function PaymentSuccess() {
       try {
         const appointmentData: AppointmentData = JSON.parse(decodeURIComponent(dataParam));
         
-        // Calculate end time (1 hour after start time)
-        const [hours, minutes, seconds] = appointmentData.time.split(":").map(Number);
-        const endHours = (hours + 1).toString().padStart(2, "0");
-        const endTime = `${endHours}:${minutes.toString().padStart(2, "0")}:${(seconds || 0).toString().padStart(2, "0")}`;
+        // Validate availability before booking
+        const validateAndBook = async () => {
+          try {
+            const availableSlots = await physicianScheduleApi.getFreeAppointments(
+              appointmentData.physicianId,
+              appointmentData.date.split('T')[0] // Extract date part only
+            );
 
-        bookMutation.mutate({
-          appointmentDate: appointmentData.date,
-          startTime: appointmentData.time,
-          endTime,
-          patientId: parseInt(appointmentData.patientId),
-          physicianId: appointmentData.physicianId,
-          meetingAddress: appointmentData.address,
-          physicianNotes: appointmentData.notes,
-        });
+            if (!availableSlots.includes(appointmentData.time)) {
+              toast.error("This appointment slot is no longer available. Your payment will be refunded.");
+              navigate("/appointments");
+              return;
+            }
+
+            // Calculate end time (1 hour after start time)
+            const [hours, minutes, seconds] = appointmentData.time.split(":").map(Number);
+            const endHours = (hours + 1).toString().padStart(2, "0");
+            const endTime = `${endHours}:${minutes.toString().padStart(2, "0")}:${(seconds || 0).toString().padStart(2, "0")}`;
+
+            bookMutation.mutate({
+              appointmentDate: appointmentData.date.split('T')[0], // Extract date part only
+              startTime: appointmentData.time,
+              endTime,
+              patientId: parseInt(appointmentData.patientId),
+              PhysicianId: appointmentData.physicianId,
+              meetingAddress: appointmentData.address,
+              physicianNotes: appointmentData.notes,
+            });
+          } catch (error) {
+            console.error("Availability check failed:", error);
+            toast.error("Failed to verify appointment availability. Please contact support for refund.");
+            navigate("/appointments");
+          }
+        };
+
+        validateAndBook();
       } catch (error) {
         toast.error("Invalid appointment data");
       }
     }
-  }, [searchParams]);
+  }, [searchParams, navigate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">

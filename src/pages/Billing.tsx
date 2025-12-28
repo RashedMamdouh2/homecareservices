@@ -38,7 +38,7 @@ export default function Billing() {
   const { data: patients = [] } = useQuery({
     queryKey: ['patients'],
     queryFn: async () => {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://homecareservice.runasp.net/api'}/patients`, {
+      const res = await fetch(`${'https://homecareservice.runasp.net/api'}/patients`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
         },

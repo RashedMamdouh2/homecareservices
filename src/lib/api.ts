@@ -1,7 +1,7 @@
 import { getAuthToken } from "@/contexts/AuthContext";
 
-const BASE_URL = import.meta.env.VITE_API_URL || "https://homecareservice.runasp.net/api";
-const ASSET_BASE_URL = import.meta.env.VITE_ASSET_URL || "https://homecareservice.runasp.net";
+export const BASE_URL =  "https://homecareservice.runasp.net/api";
+const ASSET_BASE_URL = "https://homecareservice.runasp.net";
 
 // Helper to construct full URL for images and PDFs
 export const getAssetUrl = (path: string | undefined): string | null => {
@@ -13,7 +13,7 @@ export const getAssetUrl = (path: string | undefined): string | null => {
 };
 
 // Helper to get auth headers
-const getAuthHeaders = (): HeadersInit => {
+export const getAuthHeaders = (): HeadersInit => {
   const token = getAuthToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
@@ -47,7 +47,7 @@ export interface AppointmentCreateDto {
   startTime: string;
   endTime: string;
   patientId: number;
-  physicianId: number;
+  PhysicianId: number;
   meetingAddress: string;
   physicianNotes: string;
 }
@@ -131,7 +131,7 @@ export interface ReportCreateDto {
 
 export const appointmentsApi = {
   getAll: async (): Promise<AppointmentSendDto[]> => {
-    const res = await fetch(`${BASE_URL}/appointments/GetAllAppointments`, {
+    const res = await fetch(`${BASE_URL}/Appointments/GetAllAppointments`, {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch appointments");
@@ -155,7 +155,7 @@ export const appointmentsApi = {
   },
   
   getById: async (id: string): Promise<AppointmentSendDto> => {
-    const res = await fetch(`${BASE_URL}/appointments/GetAppointment/${id}`, {
+    const res = await fetch(`${BASE_URL}/Appointments/GetAppointment/${id}`, {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch appointment");
@@ -163,16 +163,19 @@ export const appointmentsApi = {
   },
   
   create: async (data: AppointmentCreateDto): Promise<void> => {
-    const res = await fetch(`${BASE_URL}/appointments/BookAppointment`, {
+    const res = await fetch(`${BASE_URL}/Appointments/BookAppointment`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...getAuthHeaders() },
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error("Failed to book appointment");
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(`Failed to book appointment: ${errorText}`);
+    }
   },
 
   update: async (id: string, data: AppointmentCreateDto): Promise<void> => {
-    const res = await fetch(`${BASE_URL}/appointments/${id}`, {
+    const res = await fetch(`${BASE_URL}/Appointments/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json", ...getAuthHeaders() },
       body: JSON.stringify(data),
@@ -181,7 +184,7 @@ export const appointmentsApi = {
   },
 
   delete: async (id: string): Promise<void> => {
-    const res = await fetch(`${BASE_URL}/appointments/${id}`, {
+    const res = await fetch(`${BASE_URL}/Appointments/${id}`, {
       method: "DELETE",
       headers: getAuthHeaders(),
     });
@@ -202,7 +205,7 @@ export const appointmentsApi = {
 
 export const physiciansApi = {
   getAll: async (): Promise<PhysicianSendDto[]> => {
-    const res = await fetch(`${BASE_URL}/physician/GetAllPhysicians`, {
+    const res = await fetch(`${BASE_URL}/Physician/GetAllPhysicians`, {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch physicians");
@@ -210,7 +213,7 @@ export const physiciansApi = {
   },
   
   getById: async (id: number): Promise<PhysicianSendDto> => {
-    const res = await fetch(`${BASE_URL}/physician/GetPhysician/${id}`, {
+    const res = await fetch(`${BASE_URL}/Physician/GetPhysician/${id}`, {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch physician");
@@ -224,7 +227,7 @@ export const physiciansApi = {
     formData.append("ClinicalAddress", data.clinicalAddress);
     formData.append("Image", data.image);
     
-    const res = await fetch(`${BASE_URL}/physician/AddPhysician`, {
+    const res = await fetch(`${BASE_URL}/Physician/AddPhysician`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: formData,
@@ -240,7 +243,7 @@ export const physiciansApi = {
     if (data.clinicalAddress) formData.append("ClinicalAddress", data.clinicalAddress);
     if (data.image) formData.append("Image", data.image);
     
-    const res = await fetch(`${BASE_URL}/physician/${id}`, {
+    const res = await fetch(`${BASE_URL}/Physician/${id}`, {
       method: "PUT",
       headers: getAuthHeaders(),
       body: formData,
@@ -249,7 +252,7 @@ export const physiciansApi = {
   },
 
   delete: async (id: number): Promise<void> => {
-    const res = await fetch(`${BASE_URL}/physician/${id}`, {
+    const res = await fetch(`${BASE_URL}/Physician/${id}`, {
       method: "DELETE",
       headers: getAuthHeaders(),
     });
@@ -259,7 +262,7 @@ export const physiciansApi = {
 
 export const patientsApi = {
   getAll: async (): Promise<PatientSendDto[]> => {
-    const res = await fetch(`${BASE_URL}/patient/GetAllPatients`, {
+    const res = await fetch(`${BASE_URL}/Patient/GetAllPatients`, {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch patients");
@@ -267,7 +270,7 @@ export const patientsApi = {
   },
   
   getById: async (id: number): Promise<PatientSendDto> => {
-    const res = await fetch(`${BASE_URL}/patient/GetPatient/${id}`, {
+    const res = await fetch(`${BASE_URL}/Patient/GetPatient/${id}`, {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch patient");
@@ -284,7 +287,7 @@ export const patientsApi = {
     formData.append("SubscriptionId", data.subscriptionId.toString());
     formData.append("Image", data.image);
     
-    const res = await fetch(`${BASE_URL}/patient/AddPatient`, {
+    const res = await fetch(`${BASE_URL}/Patient/AddPatient`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: formData,
@@ -303,7 +306,7 @@ export const patientsApi = {
     if (data.subscriptionId !== undefined) formData.append("SubscriptionId", data.subscriptionId.toString());
     if (data.image) formData.append("Image", data.image);
     
-    const res = await fetch(`${BASE_URL}/patient/${id}`, {
+    const res = await fetch(`${BASE_URL}/Patient/${id}`, {
       method: "PUT",
       headers: getAuthHeaders(),
       body: formData,
@@ -312,7 +315,7 @@ export const patientsApi = {
   },
 
   delete: async (id: number): Promise<void> => {
-    const res = await fetch(`${BASE_URL}/patient/${id}`, {
+    const res = await fetch(`${BASE_URL}/Patient/${id}`, {
       method: "DELETE",
       headers: getAuthHeaders(),
     });
@@ -322,7 +325,7 @@ export const patientsApi = {
 
 export const specializationsApi = {
   getAll: async (): Promise<SpecializationDto[]> => {
-    const res = await fetch(`${BASE_URL}/specialization/GetAllSpecializations`, {
+    const res = await fetch(`${BASE_URL}/Specialization/GetAllSpecializations`, {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch specializations");
@@ -330,7 +333,7 @@ export const specializationsApi = {
   },
 
   getPhysicians: async (specializationId: number): Promise<PhysicianSendDto[]> => {
-    const res = await fetch(`${BASE_URL}/specialization/GetPhysicians/${specializationId}`, {
+    const res = await fetch(`${BASE_URL}/Specialization/GetPhysicians/${specializationId}`, {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch physicians for specialization");
@@ -338,7 +341,7 @@ export const specializationsApi = {
   },
 
   create: async (data: SpecializationCreateDto): Promise<void> => {
-    const res = await fetch(`${BASE_URL}/specialization/AddSpecialization`, {
+    const res = await fetch(`${BASE_URL}/Specialization/AddSpecialization`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...getAuthHeaders() },
       body: JSON.stringify(data),
@@ -347,7 +350,7 @@ export const specializationsApi = {
   },
 
   update: async (id: number, data: Partial<SpecializationCreateDto>): Promise<void> => {
-    const res = await fetch(`${BASE_URL}/specialization/${id}`, {
+    const res = await fetch(`${BASE_URL}/Specialization/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json", ...getAuthHeaders() },
       body: JSON.stringify({ id, ...data }),
@@ -356,7 +359,7 @@ export const specializationsApi = {
   },
 
   delete: async (id: number): Promise<void> => {
-    const res = await fetch(`${BASE_URL}/specialization/${id}`, {
+    const res = await fetch(`${BASE_URL}/Specialization/${id}`, {
       method: "DELETE",
       headers: getAuthHeaders(),
     });
@@ -409,11 +412,12 @@ export interface FeedbackCreateDto {
   rate: number;
   patientId: number;
   physicianId: number;
+  patientName: string;
 }
 
 export const patientMedicalApi = {
   getDiseases: async (patientId: number): Promise<PatientDiseaseDto[]> => {
-    const res = await fetch(`${BASE_URL}/patient/disease/${patientId}`, {
+    const res = await fetch(`${BASE_URL}/Patient/disease/${patientId}`, {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch patient diseases");
@@ -421,7 +425,7 @@ export const patientMedicalApi = {
   },
 
   getMedicines: async (patientId: number): Promise<MedicineDto[]> => {
-    const res = await fetch(`${BASE_URL}/patient/medicine/${patientId}`, {
+    const res = await fetch(`${BASE_URL}/Patient/medicine/${patientId}`, {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch patient medicines");
@@ -437,7 +441,7 @@ export const patientMedicalApi = {
   },
 
   addDiagnosis: async (patientId: number, data: DiagnosisCreateDto): Promise<void> => {
-    const res = await fetch(`${BASE_URL}/patient/disease/${patientId}`, {
+    const res = await fetch(`${BASE_URL}/Patient/disease/${patientId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...getAuthHeaders() },
       body: JSON.stringify(data),
@@ -465,7 +469,7 @@ export const physicianScheduleApi = {
   },
 
   getFeedbacks: async (physicianId: number): Promise<PhysicianFeedback[]> => {
-    const res = await fetch(`${BASE_URL}/physician/feedbacks/${physicianId}`, {
+    const res = await fetch(`${BASE_URL}/Physician/feedbacks/${physicianId}`, {
       headers: getAuthHeaders(),
     });
     if (!res.ok) {
@@ -477,7 +481,7 @@ export const physicianScheduleApi = {
   },
 
   addFeedback: async (physicianId: number, data: FeedbackCreateDto): Promise<void> => {
-    const res = await fetch(`${BASE_URL}/physician/feedbacks/${physicianId}`, {
+    const res = await fetch(`${BASE_URL}/Physician/feedbacks/${physicianId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...getAuthHeaders() },
       body: JSON.stringify(data),
@@ -543,7 +547,7 @@ export const paymentApi = {
 
   // Confirm payment after successful Stripe processing
   confirmPayment: async (data: PaymentConfirmationDto): Promise<void> => {
-    const res = await fetch(`${BASE_URL}/payments/confirm`, {
+    const res = await fetch(`${BASE_URL}/payments/confirm-payment/${data.paymentIntentId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...getAuthHeaders() },
       body: JSON.stringify(data),
@@ -579,7 +583,7 @@ export const paymentApi = {
 
 export const stripeApi = {
   createPaymentSession: async (data: StripePaymentDto): Promise<StripePaymentResponse> => {
-    const res = await fetch(`${BASE_URL}/stripe`, {
+    const res = await fetch(`${BASE_URL}/Stripe`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...getAuthHeaders() },
       body: JSON.stringify(data),
@@ -612,9 +616,13 @@ export const dicomApi = {
   // Upload DICOM file
   uploadDicom: async (file: File): Promise<DicomUploadResponse> => {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('File', file);
+    // Add required fields for upload
+    formData.append('PatientId', '1'); // This should come from context
+    formData.append('PhysicianId', '1'); // This should come from context
+    formData.append('Notes', 'Uploaded via DICOM viewer');
 
-    const res = await fetch(`${BASE_URL}/dicom/upload`, {
+    const res = await fetch(`${BASE_URL}/Dicom/upload`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: formData,
@@ -623,9 +631,18 @@ export const dicomApi = {
     return res.json();
   },
 
+  // Get DICOM file details
+  getDicomDetails: async (dicomId: string): Promise<any> => {
+    const res = await fetch(`${BASE_URL}/Dicom/${dicomId}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch DICOM details");
+    return res.json();
+  },
+
   // Analyze DICOM file with AI/CDSS
   analyzeDicom: async (dicomId: string): Promise<DicomAnalysisResult> => {
-    const res = await fetch(`${BASE_URL}/dicom/analyze/${dicomId}`, {
+    const res = await fetch(`${BASE_URL}/Dicom/analyze/${dicomId}`, {
       method: "POST",
       headers: getAuthHeaders(),
     });
@@ -635,7 +652,7 @@ export const dicomApi = {
 
   // Get analysis history
   getAnalyses: async (): Promise<DicomAnalysisResult[]> => {
-    const res = await fetch(`${BASE_URL}/dicom/analyses`, {
+    const res = await fetch(`${BASE_URL}/Dicom/analyses`, {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch analyses");
@@ -644,11 +661,20 @@ export const dicomApi = {
 
   // Get DICOM files for patient
   getPatientDicoms: async (patientId: number): Promise<DicomUploadResponse[]> => {
-    const res = await fetch(`${BASE_URL}/dicom/patient/${patientId}`, {
+    const res = await fetch(`${BASE_URL}/Dicom/patient/${patientId}`, {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch patient DICOMs");
     return res.json();
+  },
+
+  // Download DICOM file
+  downloadDicom: async (dicomId: string): Promise<Blob> => {
+    const res = await fetch(`${BASE_URL}/Dicom/download/${dicomId}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to download DICOM file");
+    return res.blob();
   },
 };
 
@@ -691,7 +717,7 @@ export interface PatientDemographics {
 export const analyticsApi = {
   // Get dashboard statistics
   getStats: async (): Promise<AnalyticsStats> => {
-    const res = await fetch(`${BASE_URL}/analytics/stats`, {
+    const res = await fetch(`${BASE_URL}/Analytics/stats`, {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch analytics stats");
@@ -700,7 +726,7 @@ export const analyticsApi = {
 
   // Get monthly trends data
   getMonthlyTrends: async (): Promise<MonthlyData[]> => {
-    const res = await fetch(`${BASE_URL}/analytics/monthly-trends`, {
+    const res = await fetch(`${BASE_URL}/Analytics/monthly-trends`, {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch monthly trends");
@@ -709,7 +735,7 @@ export const analyticsApi = {
 
   // Get specialty distribution
   getSpecialtyDistribution: async (): Promise<SpecialtyData[]> => {
-    const res = await fetch(`${BASE_URL}/analytics/specialties`, {
+    const res = await fetch(`${BASE_URL}/Analytics/specialties`, {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch specialty distribution");
@@ -718,7 +744,7 @@ export const analyticsApi = {
 
   // Get patient demographics
   getPatientDemographics: async (): Promise<PatientDemographics> => {
-    const res = await fetch(`${BASE_URL}/analytics/demographics`, {
+    const res = await fetch(`${BASE_URL}/Analytics/demographics`, {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch patient demographics");

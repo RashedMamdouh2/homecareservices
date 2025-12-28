@@ -28,21 +28,30 @@ export function AddFeedbackDialog({ physicianId }: AddFeedbackDialogProps) {
   const { user } = useAuth();
 
   const addMutation = useMutation({
-    mutationFn: () =>
-      physicianScheduleApi.addFeedback(physicianId, {
-        description,
+    mutationFn: () => {
+      if (!user?.patientId) {
+        throw new Error("User patient ID not found");
+      }
+      if (!user?.name) {
+        throw new Error("User name not found");
+      }
+      return physicianScheduleApi.addFeedback(physicianId, {
+        description: description,
         rate,
-        patientId: user?.patientId || 0,
-        physicianId,
-      }),
+        patientId: user.patientId,
+        physicianId: physicianId,
+        patientName: user.name,
+      });
+    },
     onSuccess: () => {
       toast.success("Feedback submitted successfully");
       queryClient.invalidateQueries({ queryKey: ["physician-feedbacks", physicianId] });
       setOpen(false);
       resetForm();
     },
-    onError: () => {
-      toast.error("Failed to submit feedback");
+    onError: (error) => {
+      console.error("Feedback submission error:", error);
+      toast.error(error.message || "Failed to submit feedback");
     },
   });
 
@@ -59,6 +68,14 @@ export function AddFeedbackDialog({ physicianId }: AddFeedbackDialogProps) {
     }
     if (!description.trim()) {
       toast.error("Please enter your feedback");
+      return;
+    }
+    if (!user?.patientId) {
+      toast.error("Unable to submit feedback. Please log in as a patient.");
+      return;
+    }
+    if (!user?.name) {
+      toast.error("Unable to submit feedback. User information is incomplete.");
       return;
     }
 
@@ -126,7 +143,7 @@ export function AddFeedbackDialog({ physicianId }: AddFeedbackDialogProps) {
           <Button
             className="w-full"
             onClick={handleSubmit}
-            disabled={addMutation.isPending || rate === 0 || !description.trim()}
+            disabled={addMutation.isPending || rate === 0 || !description.trim() || !user?.patientId || !user?.name}
           >
             {addMutation.isPending ? "Submitting..." : "Submit Feedback"}
           </Button>

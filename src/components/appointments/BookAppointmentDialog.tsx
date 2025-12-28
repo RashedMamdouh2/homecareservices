@@ -131,8 +131,8 @@ export function BookAppointmentDialog({
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       handleClose();
     },
-    onError: () => {
-      toast.error("Failed to book appointment. Please try again.");
+    onError: (error) => {
+      toast.error(error.message || "Failed to book appointment. Please try again.");
     },
   });
 
@@ -188,20 +188,40 @@ export function BookAppointmentDialog({
     }
   };
 
-  const handleProceedToPayment = () => {
-    if (!selectedPatientId || !meetingAddress) {
+  const handleProceedToPayment = async () => {
+    if (!selectedPatientId || !meetingAddress || !physicianNotes.trim()) {
       toast.error("Please fill in all required fields");
       return;
     }
-    
+
+    // Re-check availability before proceeding
+    if (selectedPhysician && selectedDay && selectedTime) {
+      try {
+        const currentAvailableSlots = await physicianScheduleApi.getFreeAppointments(
+          selectedPhysician.id,
+          format(new Date(selectedYear, selectedMonth, selectedDay), "yyyy-MM-dd")
+        );
+
+        if (!currentAvailableSlots.includes(selectedTime)) {
+          toast.error("This time slot is no longer available. Please select a different time.");
+          // Reset to datetime step to allow reselection
+          setStep("datetime");
+          return;
+        }
+      } catch (error) {
+        toast.error("Failed to verify availability. Please try again.");
+        return;
+      }
+    }
+
     const sessionPrice = physicianDetails?.sessionPrice || 0;
-    
+
     // If session is free, book directly
     if (sessionPrice <= 0) {
       handleBookAppointment();
       return;
     }
-    
+
     // Otherwise, proceed to payment
     setStep("payment");
   };
@@ -258,11 +278,7 @@ export function BookAppointmentDialog({
       return;
     }
 
-    const appointmentDate = new Date(
-      selectedYear,
-      selectedMonth,
-      selectedDay
-    ).toISOString();
+    const appointmentDate = format(new Date(selectedYear, selectedMonth, selectedDay), "yyyy-MM-dd");
     
     // Calculate end time (1 hour after start time)
     const [hours, minutes, seconds] = selectedTime.split(":").map(Number);
@@ -274,7 +290,7 @@ export function BookAppointmentDialog({
       startTime: selectedTime,
       endTime,
       patientId: parseInt(selectedPatientId),
-      physicianId: selectedPhysician.id,
+      PhysicianId: selectedPhysician.id,
       meetingAddress,
       physicianNotes,
     });
@@ -642,7 +658,7 @@ export function BookAppointmentDialog({
         <div className="space-y-2">
           <Label htmlFor="notes" className="flex items-center gap-2">
             <FileText className="w-4 h-4" />
-            Physician Notes
+            Physician Notes *
           </Label>
           <Textarea
             id="notes"
@@ -656,7 +672,7 @@ export function BookAppointmentDialog({
 
       <Button
         className="w-full"
-        disabled={!selectedPatientId || !meetingAddress || bookMutation.isPending}
+        disabled={!selectedPatientId || !meetingAddress || !physicianNotes.trim() || bookMutation.isPending}
         onClick={handleProceedToPayment}
       >
         {bookMutation.isPending ? (

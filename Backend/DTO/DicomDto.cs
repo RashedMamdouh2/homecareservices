@@ -66,7 +66,18 @@ namespace Homecare.DTO
         public string Description { get; set; }
         public DateTime CreatedDate { get; set; }
         public DateTime? ModifiedDate { get; set; }
-        public DateTime CreatedAt { get; set; }
-        public DateTime? UpdatedAt { get; set; }
+    public class DicomAnalysisResult
+    {
+        public int DicomFileId { get; set; }
+        public string AnalysisType { get; set; }
+        public string Result { get; set; }
+        public DateTime AnalysisDate { get; set; }
+        public string FileName { get; set; }
+        public string Findings { get; set; }
+        public decimal Confidence { get; set; }
+        public string Recommendations { get; set; }
+        public DateTime AnalyzedAt { get; set; }
+        public int? PhysicianId { get; set; }
+        public int? PatientId { get; set; }
     }
 }

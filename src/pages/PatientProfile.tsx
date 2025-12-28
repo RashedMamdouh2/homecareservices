@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AddDiagnosisDialog } from "@/components/patients/AddDiagnosisDialog";
+import { DicomManager } from "@/components/dicom";
 import {
   User,
   Phone,
@@ -131,130 +132,136 @@ export default function PatientProfile() {
       </Card>
 
       {/* Medical Records Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Diseases */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-destructive/10 flex items-center justify-center">
-                <Stethoscope className="w-5 h-5 text-destructive" />
+      <div className="space-y-6">
+        {/* Medical Conditions and Medications */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Diseases */}
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-destructive/10 flex items-center justify-center">
+                  <Stethoscope className="w-5 h-5 text-destructive" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-card-foreground">
+                    Medical Conditions
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Diagnosed diseases
+                  </p>
+                </div>
+              </div>
+              {isPhysician && patientId && (
+                <AddDiagnosisDialog patientId={patientId} />
+              )}
+            </div>
+            <ScrollArea className="h-[300px]">
+              {loadingDiseases ? (
+                <div className="flex justify-center py-8">
+                  <LoadingSpinner />
+                </div>
+              ) : diseases?.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">
+                  No medical conditions recorded
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {diseases?.map((disease, index) => (
+                    <div
+                      key={`${disease.icd}-${index}`}
+                      className="p-4 rounded-lg bg-muted/50 border border-border"
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <h4 className="font-medium text-card-foreground">
+                          {disease.diseaseName}
+                        </h4>
+                        <Badge variant="outline" className="text-xs">
+                          ICD: {disease.icd}
+                        </Badge>
+                      </div>
+                      <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="w-4 h-4" />
+                          <span>Diagnosed: {format(new Date(disease.diagnosisDate), "MMM d, yyyy")}</span>
+                        </div>
+                        {disease.recoverdDate && (
+                          <div className="flex items-center gap-1 text-green-600">
+                            <CheckCircle className="w-4 h-4" />
+                            <span>Recovered: {format(new Date(disease.recoverdDate), "MMM d, yyyy")}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+          </Card>
+
+          {/* Medicines */}
+          <Card className="p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Pill className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <h3 className="font-semibold text-card-foreground">
-                  Medical Conditions
-                </h3>
+                <h3 className="font-semibold text-card-foreground">Medications</h3>
                 <p className="text-sm text-muted-foreground">
-                  Diagnosed diseases
+                  Prescribed medicines
                 </p>
               </div>
             </div>
-            {isPhysician && patientId && (
-              <AddDiagnosisDialog patientId={patientId} />
-            )}
-          </div>
-          <ScrollArea className="h-[300px]">
-            {loadingDiseases ? (
-              <div className="flex justify-center py-8">
-                <LoadingSpinner />
-              </div>
-            ) : diseases?.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">
-                No medical conditions recorded
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {diseases?.map((disease, index) => (
-                  <div
-                    key={`${disease.icd}-${index}`}
-                    className="p-4 rounded-lg bg-muted/50 border border-border"
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <h4 className="font-medium text-card-foreground">
-                        {disease.diseaseName}
-                      </h4>
-                      <Badge variant="outline" className="text-xs">
-                        ICD: {disease.icd}
-                      </Badge>
-                    </div>
-                    <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-4 h-4" />
-                        <span>Diagnosed: {format(new Date(disease.diagnosisDate), "MMM d, yyyy")}</span>
-                      </div>
-                      {disease.recoverdDate && (
-                        <div className="flex items-center gap-1 text-green-600">
-                          <CheckCircle className="w-4 h-4" />
-                          <span>Recovered: {format(new Date(disease.recoverdDate), "MMM d, yyyy")}</span>
+            <ScrollArea className="h-[300px]">
+              {loadingMedicines ? (
+                <div className="flex justify-center py-8">
+                  <LoadingSpinner />
+                </div>
+              ) : medicines?.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">
+                  No medications recorded
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {medicines?.map((medicine, index) => (
+                    <div
+                      key={index}
+                      className="p-4 rounded-lg bg-muted/50 border border-border"
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <h4 className="font-medium text-card-foreground">
+                              {medicine.name}
+                            </h4>
+                            <p className="text-sm text-muted-foreground">
+                              {medicine.description}
+                            </p>
+                          </div>
+                          <Badge variant="secondary">
+                            {medicine.dose}g x{medicine.doseFrequency}/day
+                          </Badge>
                         </div>
-                      )}
+                        {medicine.usageTimes && medicine.usageTimes.length > 0 && (
+                          <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-border">
+                            <Clock className="w-4 h-4 text-muted-foreground" />
+                            {medicine.usageTimes.map((time, i) => (
+                              <Badge key={i} variant="outline" className="text-xs">
+                                {formatTime(time)}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </ScrollArea>
-        </Card>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+          </Card>
+        </div>
 
-        {/* Medicines */}
-        <Card className="p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Pill className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-card-foreground">Medications</h3>
-              <p className="text-sm text-muted-foreground">
-                Prescribed medicines
-              </p>
-            </div>
-          </div>
-          <ScrollArea className="h-[300px]">
-            {loadingMedicines ? (
-              <div className="flex justify-center py-8">
-                <LoadingSpinner />
-              </div>
-            ) : medicines?.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">
-                No medications recorded
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {medicines?.map((medicine, index) => (
-                  <div
-                    key={index}
-                    className="p-4 rounded-lg bg-muted/50 border border-border"
-                  >
-                    <div className="space-y-2">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h4 className="font-medium text-card-foreground">
-                            {medicine.name}
-                          </h4>
-                          <p className="text-sm text-muted-foreground">
-                            {medicine.description}
-                          </p>
-                        </div>
-                        <Badge variant="secondary">
-                          {medicine.dose}g x{medicine.doseFrequency}/day
-                        </Badge>
-                      </div>
-                      {medicine.usageTimes && medicine.usageTimes.length > 0 && (
-                        <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-border">
-                          <Clock className="w-4 h-4 text-muted-foreground" />
-                          {medicine.usageTimes.map((time, i) => (
-                            <Badge key={i} variant="outline" className="text-xs">
-                              {formatTime(time)}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </ScrollArea>
-        </Card>
+        {/* DICOM Medical Imaging */}
+        {patientId && <DicomManager patientId={patientId} />}
       </div>
     </div>
   );
