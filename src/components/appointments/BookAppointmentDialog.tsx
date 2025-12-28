@@ -326,8 +326,8 @@ export function BookAppointmentDialog({
       endTime,
       patientId: parseInt(selectedPatientId),
       physicianId: selectedPhysician.id,
-      meetingAddress,
-      physicianNotes,
+      MeetingAddress: meetingAddress,
+      PhysicianNotes: physicianNotes,
     });
   };
 

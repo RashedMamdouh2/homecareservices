@@ -71,8 +71,8 @@ export default function PaymentSuccess() {
               endTime: endTime, // TimeOnly string
               patientId: parseInt(appointmentData.patientId),
               physicianId: appointmentData.physicianId,
-              meetingAddress: appointmentData.address,
-              physicianNotes: appointmentData.notes,
+              MeetingAddress: appointmentData.address,
+              PhysicianNotes: appointmentData.notes,
             });
           } catch (error) {
             console.error("Availability check failed:", error);

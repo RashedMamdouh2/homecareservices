@@ -48,8 +48,8 @@ export interface AppointmentCreateDto {
   endTime: string;
   patientId: number;
   physicianId: number;
-  meetingAddress: string;
-  physicianNotes: string;
+  MeetingAddress: string;
+  PhysicianNotes: string;
 }
 
 export interface PhysicianSendDto {

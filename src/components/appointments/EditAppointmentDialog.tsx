@@ -122,8 +122,8 @@ export function EditAppointmentDialog({
       endTime, // TimeOnly string (already in correct format)
       patientId: parseInt(patientId),
       physicianId: parseInt(physicianId),
-      meetingAddress,
-      physicianNotes,
+      MeetingAddress: meetingAddress,
+      PhysicianNotes: physicianNotes,
     });
   };
 
