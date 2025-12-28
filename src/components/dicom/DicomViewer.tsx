@@ -49,37 +49,6 @@ import {
 import { toast } from 'sonner';
 import { dicomApi, DicomAnalysisResult, BASE_URL, getAuthHeaders } from '@/lib/api';
 import dicomParser from 'dicom-parser';
-import { cornerstoneStreamingImageVolumeLoader } from '@cornerstonejs/streaming-image-volume-loader';
-import {
-  RenderingEngine,
-  Types,
-  Enums,
-  volumeLoader,
-  imageLoader,
-  getRenderingEngine,
-  cache,
-  metaData,
-  utilities,
-  registerImageLoader,
-  registerVolumeLoader,
-} from '@cornerstonejs/core';
-import dicomImageLoader from '@cornerstonejs/dicom-image-loader';
-import {
-  WindowLevelTool,
-  PanTool,
-  ZoomTool,
-  StackScrollTool,
-  LengthTool,
-  AngleTool,
-  RectangleROITool,
-  EllipticalROITool,
-  BidirectionalTool,
-  ProbeTool,
-  Enums as csToolsEnums,
-  init as csToolsInit,
-  addTool,
-  ToolGroupManager,
-} from '@cornerstonejs/tools';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface DicomViewerProps {
@@ -111,12 +80,8 @@ export function DicomViewer({
   const [totalSlices, setTotalSlices] = useState(1);
   const [viewMode, setViewMode] = useState<'2d' | '3d' | 'mpr'>('2d');
 
-  // Cornerstone.js state
-  const [isCornerstoneInitialized, setIsCornerstoneInitialized] = useState(false);
-  const [renderingEngine, setRenderingEngine] = useState<RenderingEngine | null>(null);
-  const [viewportId, setViewportId] = useState<string>('dicom-viewport');
-  const [toolGroup, setToolGroup] = useState<any>(null);
-  const renderingEngineId = 'dicom-rendering-engine';
+  // DICOM viewer state
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Fetch DICOM files for patient
   const { data: dicomFiles, isLoading: loadingDicoms } = useQuery({
@@ -213,123 +178,128 @@ export function DicomViewer({
     }
   };
 
-  // Initialize Cornerstone.js
+  // Initialize DICOM viewer
   useEffect(() => {
-    const initializeCornerstone = async () => {
-      if (isCornerstoneInitialized) return;
-
-      try {
-        // Initialize Cornerstone.js
-        await csToolsInit();
-
-        // Register DICOM image loader
-        dicomImageLoader.external.dicomParser = dicomParser;
-        registerImageLoader('dicom', dicomImageLoader);
-
-        // Register volume loader
-        registerVolumeLoader('cornerstoneStreamingImageVolume', cornerstoneStreamingImageVolumeLoader);
-
-        // Create rendering engine
-        const engine = new RenderingEngine(renderingEngineId);
-        setRenderingEngine(engine);
-
-        // Create tool group
-        const toolGroupId = 'dicom-tool-group';
-        const tg = ToolGroupManager.createToolGroup(toolGroupId);
-
-        // Add tools to tool group
-        addTool(WindowLevelTool);
-        addTool(PanTool);
-        addTool(ZoomTool);
-        addTool(StackScrollTool);
-        addTool(LengthTool);
-        addTool(AngleTool);
-        addTool(RectangleROITool);
-        addTool(EllipticalROITool);
-        addTool(BidirectionalTool);
-        addTool(ProbeTool);
-
-        // Add tools to tool group
-        tg.addTool(WindowLevelTool.toolName);
-        tg.addTool(PanTool.toolName);
-        tg.addTool(ZoomTool.toolName);
-        tg.addTool(StackScrollTool.toolName);
-        tg.addTool(LengthTool.toolName);
-        tg.addTool(AngleTool.toolName);
-        tg.addTool(RectangleROITool.toolName);
-        tg.addTool(EllipticalROITool.toolName);
-        tg.addTool(BidirectionalTool.toolName);
-        tg.addTool(ProbeTool.toolName);
-
-        // Set tool modes
-        tg.setToolActive(PanTool.toolName, {
-          bindings: [{ mouseButton: csToolsEnums.MouseBindings.Primary }],
-        });
-        tg.setToolActive(ZoomTool.toolName, {
-          bindings: [{ mouseButton: csToolsEnums.MouseBindings.Secondary }],
-        });
-        tg.setToolActive(WindowLevelTool.toolName, {
-          bindings: [{ mouseButton: csToolsEnums.MouseBindings.Auxiliary }],
-        });
-
-        setToolGroup(tg);
-        setIsCornerstoneInitialized(true);
-
-        console.log('Cornerstone.js initialized successfully');
-      } catch (error) {
-        console.error('Failed to initialize Cornerstone.js:', error);
-        toast.error('Failed to initialize DICOM viewer');
-      }
+    const initializeViewer = () => {
+      if (isInitialized) return;
+      setIsInitialized(true);
     };
 
     if (open) {
-      initializeCornerstone();
+      initializeViewer();
     }
-
-    return () => {
-      // Cleanup on unmount
-      if (renderingEngine) {
-        renderingEngine.destroy();
-      }
-    };
-  }, [open, isCornerstoneInitialized]);
+  }, [open, isInitialized]);
 
   // Load DICOM image when file is selected
   useEffect(() => {
     const loadDicomImage = async () => {
-      if (!currentDicomId || !isCornerstoneInitialized || !renderingEngine || !canvasRef.current || !toolGroup) return;
+      if (!currentDicomId || !canvasRef.current) return;
 
       try {
-        // Download DICOM file as blob
+        // Download DICOM file
         const dicomBlob = await dicomApi.downloadDicom(currentDicomId);
-        const dicomUrl = URL.createObjectURL(dicomBlob);
+        const dicomArrayBuffer = await dicomBlob.arrayBuffer();
 
-        // Create viewport
-        const viewportInput = {
-          viewportId,
-          type: Enums.ViewportType.STACK,
-          element: canvasRef.current,
-          defaultOptions: {
-            background: [0, 0, 0],
-          },
-        };
+        // Parse DICOM data
+        const dicomDataSet = dicomParser.parseDicom(new Uint8Array(dicomArrayBuffer));
 
-        renderingEngine.enableElement(viewportInput);
-        const viewport = renderingEngine.getViewport(viewportId) as Types.IStackViewport;
+        // Extract image information
+        const rows = dicomDataSet.uint16('x0028', 'x0010') || 512;
+        const cols = dicomDataSet.uint16('x0028', 'x0011') || 512;
+        const bitsAllocated = dicomDataSet.uint16('x0028', 'x0100') || 16;
+        const bitsStored = dicomDataSet.uint16('x0028', 'x0101') || 16;
+        const highBit = dicomDataSet.uint16('x0028', 'x0102') || 15;
+        const pixelRepresentation = dicomDataSet.uint16('x0028', 'x0103') || 0; // 0 = unsigned, 1 = signed
 
-        // Load DICOM image using blob URL
-        const imageId = `dicom:${dicomUrl}`;
-        const imageIds = [imageId];
+        // Get pixel data
+        const pixelDataElement = dicomDataSet.elements.x7fe00010;
+        if (!pixelDataElement) {
+          throw new Error('No pixel data found in DICOM file');
+        }
 
-        // Load and display the image
-        await imageLoader.loadAndCacheImage(imageId);
-        viewport.setStack(imageIds);
-        viewport.render();
+        // Extract pixel data
+        const pixelData = new Uint8Array(dicomArrayBuffer, pixelDataElement.dataOffset, pixelDataElement.length);
 
-        // Set tool group for viewport
-        toolGroup.addViewport(viewportId, renderingEngineId);
+        // Handle different bit depths and signed/unsigned
+        let processedPixelData: Uint16Array | Int16Array;
+        if (bitsAllocated === 16) {
+          if (pixelRepresentation === 1) {
+            processedPixelData = new Int16Array(pixelData.buffer, pixelData.byteOffset, pixelData.length / 2);
+          } else {
+            processedPixelData = new Uint16Array(pixelData.buffer, pixelData.byteOffset, pixelData.length / 2);
+          }
+        } else {
+          // 8-bit data
+          processedPixelData = new Uint16Array(pixelData.length);
+          for (let i = 0; i < pixelData.length; i++) {
+            processedPixelData[i] = pixelData[i];
+          }
+        }
 
-        // Set total slices (single image for now)
+        // Get windowing information
+        let windowCenter = dicomDataSet.floatString('x0028', 'x1050');
+        let windowWidth = dicomDataSet.floatString('x0028', 'x1051');
+
+        // Default windowing if not provided
+        if (!windowCenter || !windowWidth) {
+          let minVal = Infinity;
+          let maxVal = -Infinity;
+          for (let i = 0; i < processedPixelData.length; i++) {
+            const val = processedPixelData[i];
+            if (val < minVal) minVal = val;
+            if (val > maxVal) maxVal = val;
+          }
+          windowCenter = (minVal + maxVal) / 2;
+          windowWidth = maxVal - minVal;
+        }
+
+        // Create canvas for rendering
+        const canvas = canvasRef.current;
+        canvas.width = cols;
+        canvas.height = rows;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        // Create ImageData
+        const imageData = ctx.createImageData(cols, rows);
+        const data = imageData.data;
+
+        // Apply windowing and convert to RGBA
+        const windowMin = windowCenter - windowWidth / 2;
+        const windowMax = windowCenter + windowWidth / 2;
+
+        for (let i = 0; i < processedPixelData.length; i++) {
+          const pixelValue = processedPixelData[i];
+
+          // Apply windowing
+          let normalizedValue: number;
+          if (pixelValue <= windowMin) {
+            normalizedValue = 0;
+          } else if (pixelValue >= windowMax) {
+            normalizedValue = 255;
+          } else {
+            normalizedValue = ((pixelValue - windowMin) / (windowMax - windowMin)) * 255;
+          }
+
+          // Apply brightness and contrast adjustments
+          normalizedValue = ((normalizedValue - 128) * (contrast / 100 + 1)) + 128 + brightness;
+          normalizedValue = Math.max(0, Math.min(255, normalizedValue));
+
+          const pixelIndex = i * 4;
+          data[pixelIndex] = normalizedValue;     // R
+          data[pixelIndex + 1] = normalizedValue; // G
+          data[pixelIndex + 2] = normalizedValue; // B
+          data[pixelIndex + 3] = 255;             // A
+        }
+
+        // Render the image
+        ctx.putImageData(imageData, 0, 0);
+
+        // Apply zoom and rotation using CSS transforms
+        canvas.style.transform = `scale(${zoom}) rotate(${rotation}deg)`;
+        canvas.style.transformOrigin = 'center center';
+
+        // Set total slices
         setTotalSlices(1);
         setCurrentSlice(0);
 
@@ -342,7 +312,7 @@ export function DicomViewer({
     };
 
     loadDicomImage();
-  }, [currentDicomId, isCornerstoneInitialized, renderingEngine, toolGroup, viewportId]);
+  }, [currentDicomId, brightness, contrast, zoom, rotation]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
