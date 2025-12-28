@@ -122,6 +122,8 @@ export function BookAppointmentDialog({
         selectedDateFormatted!
       ),
     enabled: !!selectedPhysician && !!selectedDateFormatted,
+    staleTime: 0,
+    gcTime: 0,
   });
 
   // Book appointment mutation
