@@ -113,15 +113,13 @@ export function EditAppointmentDialog({
       return;
     }
 
-    // Combine date with time to create full datetime strings
+    // Create datetime format: appointmentDate as full datetime, startTime/endTime as TimeOnly
     const appointmentDateTime = `${appointmentDate}T${startTime}.000Z`;
-    const startTimeFull = `${appointmentDate}T${startTime}.000Z`;
-    const endTimeFull = `${appointmentDate}T${endTime}.000Z`;
 
     mutation.mutate({
-      appointmentDate: appointmentDateTime,
-      startTime: startTimeFull,
-      endTime: endTimeFull,
+      appointmentDate: appointmentDateTime, // Full datetime string
+      startTime, // TimeOnly string (already in correct format)
+      endTime, // TimeOnly string (already in correct format)
       patientId: parseInt(patientId),
       physicianId: parseInt(physicianId),
       meetingAddress,

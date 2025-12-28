@@ -314,11 +314,11 @@ export function BookAppointmentDialog({
     const min = String(appointmentDateTime.getMinutes()).padStart(2, "0");
     const sec = String(appointmentDateTime.getSeconds()).padStart(2, "0");
     
-    // Create full datetime strings with timezone for all fields
+    // Create datetime format: appointmentDate as full datetime, startTime/endTime as TimeOnly
     const appointmentDate = `${year}-${month}-${day}T${hour}:${min}:${sec}.000Z`;
-    const startTime = `${year}-${month}-${day}T${hour}:${min}:${sec}.000Z`;
+    const startTime = `${hour}:${min}:${sec}`; // TimeOnly
     const endHours = (hours + 1).toString().padStart(2, "0");
-    const endTime = `${year}-${month}-${day}T${endHours}:${minutes.toString().padStart(2, "0")}:${(seconds || 0).toString().padStart(2, "0")}.000Z`;
+    const endTime = `${endHours}:${minutes.toString().padStart(2, "0")}:${(seconds || 0).toString().padStart(2, "0")}`; // TimeOnly
 
     bookMutation.mutate({
       appointmentDate,
