@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Dialog,
@@ -66,6 +66,7 @@ export function DicomViewer({
   const [viewMode, setViewMode] = useState<'2d' | '3d' | 'mpr'>('3d');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [is3DLoading, setIs3DLoading] = useState(false);
   const [windowLevel, setWindowLevel] = useState({ center: 40, width: 400 });
   const [currentSlice, setCurrentSlice] = useState(0);
   const [totalSlices, setTotalSlices] = useState(1);
@@ -291,9 +292,22 @@ export function DicomViewer({
     }
   };
 
+  // Analysis mutation
+  const analyzeFileMutation = useMutation({
+    mutationFn: dicomApi.analyzeDicom,
+    onSuccess: (data) => {
+      toast.success('Analysis complete');
+      console.log('Analysis result:', data);
+    },
+    onError: (error) => {
+      console.error('Analysis error:', error);
+      toast.error('Failed to analyze DICOM file');
+    },
+  });
+
   const handleAnalyze = () => {
     if (currentDicomId) {
-      analyzeMutation.mutate(currentDicomId);
+      analyzeFileMutation.mutate(currentDicomId);
     }
   };
 
@@ -404,7 +418,8 @@ export function DicomViewer({
 
     for (const file of sortedFiles) {
       const arrayBuffer = await file.arrayBuffer();
-      const dataSet = dicomParser.parseDicom(arrayBuffer);
+      const byteArray = new Uint8Array(arrayBuffer);
+      const dataSet = dicomParser.parseDicom(byteArray);
 
       // Extract pixel data
       const pixelDataElement = dataSet.elements.x7fe00008 || dataSet.elements.x7fe00010;
@@ -757,11 +772,11 @@ export function DicomViewer({
                     <p className="text-sm">{dicomDetails.studyDescription || 'No description available'}</p>
                     <Button
                       onClick={handleAnalyze}
-                      disabled={analyzeMutation.isPending}
+                      disabled={analyzeFileMutation.isPending}
                       size="sm"
                       className="w-full"
                     >
-                      {analyzeMutation.isPending ? <LoadingSpinner /> : 'Analyze with AI'}
+                      {analyzeFileMutation.isPending ? <LoadingSpinner /> : 'Analyze with AI'}
                     </Button>
                   </div>
                 ) : (

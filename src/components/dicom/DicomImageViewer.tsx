@@ -1,12 +1,19 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import dicomParser from "dicom-parser";
-import { ZoomIn, ZoomOut, RotateCcw, Maximize2, RefreshCw } from "lucide-react";
+import { ZoomIn, ZoomOut, RotateCcw, Maximize2, RefreshCw, ChevronUp, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
 
 interface DicomImageViewerProps {
   file: File | null;
+}
+
+interface DicomSlice {
+  pixelData: Int16Array | Uint16Array | Uint8Array;
+  instanceNumber: number;
+  sliceLocation: number;
 }
 
 interface DicomImageData {
@@ -14,12 +21,16 @@ interface DicomImageData {
   height: number;
   windowCenter: number;
   windowWidth: number;
-  pixelData: Int16Array | Uint16Array | Uint8Array;
+  slices: DicomSlice[];
   slope: number;
   intercept: number;
   patientName: string;
   studyDescription: string;
   modality: string;
+  bitsAllocated: number;
+  bitsStored: number;
+  highBit: number;
+  photometricInterpretation: string;
 }
 
 export function DicomImageViewer({ file }: DicomImageViewerProps) {
@@ -31,51 +42,84 @@ export function DicomImageViewer({ file }: DicomImageViewerProps) {
   const [contrast, setContrast] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentSlice, setCurrentSlice] = useState(0);
 
-  useEffect(() => {
-    if (!file) {
-      setImageData(null);
-      return;
-    }
+  const loadDicomFile = useCallback(async (dicomFile: File) => {
+    setIsLoading(true);
+    setError(null);
 
-    const loadDicomFile = async () => {
-      setIsLoading(true);
-      setError(null);
+    try {
+      const arrayBuffer = await dicomFile.arrayBuffer();
+      const byteArray = new Uint8Array(arrayBuffer);
+      
+      // Parse DICOM file
+      const dataSet = dicomParser.parseDicom(byteArray);
+      
+      // Extract image dimensions
+      const columns = dataSet.uint16("x00280011") || 512;
+      const rows = dataSet.uint16("x00280010") || 512;
+      const bitsAllocated = dataSet.uint16("x00280100") || 16;
+      const bitsStored = dataSet.uint16("x00280101") || bitsAllocated;
+      const highBit = dataSet.uint16("x00280102") || (bitsStored - 1);
+      const pixelRepresentation = dataSet.uint16("x00280103") || 0;
+      const samplesPerPixel = dataSet.uint16("x00280002") || 1;
+      const photometricInterpretation = dataSet.string("x00280004") || "MONOCHROME2";
+      
+      // Window center/width for display
+      let windowCenter = dataSet.floatString("x00281050");
+      let windowWidth = dataSet.floatString("x00281051");
+      const slope = dataSet.floatString("x00281053") || 1;
+      const intercept = dataSet.floatString("x00281052") || 0;
+      
+      // Multi-frame support
+      const numberOfFrames = dataSet.intString("x00280008") || 1;
+      const instanceNumber = dataSet.intString("x00200013") || 1;
+      const sliceLocation = dataSet.floatString("x00201041") || 0;
+      
+      // Patient info
+      const patientName = dataSet.string("x00100010") || "Unknown";
+      const studyDescription = dataSet.string("x00081030") || "N/A";
+      const modality = dataSet.string("x00080060") || "Unknown";
+      
+      // Get pixel data
+      const pixelDataElement = dataSet.elements.x7fe00010;
+      if (!pixelDataElement) {
+        throw new Error("No pixel data found in DICOM file");
+      }
 
-      try {
-        const arrayBuffer = await file.arrayBuffer();
-        const byteArray = new Uint8Array(arrayBuffer);
-        
-        // Parse DICOM file
-        const dataSet = dicomParser.parseDicom(byteArray);
-        
-        // Extract image dimensions
-        const columns = dataSet.uint16("x00280011") || 512;
-        const rows = dataSet.uint16("x00280010") || 512;
-        const bitsAllocated = dataSet.uint16("x00280100") || 16;
-        const pixelRepresentation = dataSet.uint16("x00280103") || 0;
-        
-        // Window center/width for display
-        let windowCenter = dataSet.floatString("x00281050");
-        let windowWidth = dataSet.floatString("x00281051");
-        const slope = dataSet.floatString("x00281053") || 1;
-        const intercept = dataSet.floatString("x00281052") || 0;
-        
-        // Patient info
-        const patientName = dataSet.string("x00100010") || "Unknown";
-        const studyDescription = dataSet.string("x00081030") || "N/A";
-        const modality = dataSet.string("x00080060") || "Unknown";
-        
-        // Get pixel data
-        const pixelDataElement = dataSet.elements.x7fe00010;
-        if (!pixelDataElement) {
-          throw new Error("No pixel data found in DICOM file");
+      const slices: DicomSlice[] = [];
+      const pixelDataOffset = pixelDataElement.dataOffset;
+      const pixelDataLength = pixelDataElement.length;
+      const frameSize = rows * columns * (bitsAllocated / 8) * samplesPerPixel;
+
+      // Handle multiple frames/slices
+      for (let frame = 0; frame < numberOfFrames; frame++) {
+        const frameOffset = pixelDataOffset + (frame * frameSize);
+        let pixelData: Int16Array | Uint16Array | Uint8Array;
+
+        if (bitsAllocated === 16) {
+          if (pixelRepresentation === 1) {
+            pixelData = new Int16Array(arrayBuffer, frameOffset, rows * columns);
+          } else {
+            pixelData = new Uint16Array(arrayBuffer, frameOffset, rows * columns);
+          }
+        } else if (bitsAllocated === 8) {
+          pixelData = new Uint8Array(arrayBuffer, frameOffset, rows * columns);
+        } else {
+          // Handle other bit depths
+          pixelData = new Uint16Array(arrayBuffer, frameOffset, rows * columns);
         }
 
-        let pixelData: Int16Array | Uint16Array | Uint8Array;
-        const pixelDataOffset = pixelDataElement.dataOffset;
-        const pixelDataLength = pixelDataElement.length;
+        slices.push({
+          pixelData,
+          instanceNumber: instanceNumber + frame,
+          sliceLocation: sliceLocation + frame,
+        });
+      }
 
+      // If still no slices, try to extract all pixel data as single slice
+      if (slices.length === 0) {
+        let pixelData: Int16Array | Uint16Array | Uint8Array;
         if (bitsAllocated === 16) {
           if (pixelRepresentation === 1) {
             pixelData = new Int16Array(arrayBuffer, pixelDataOffset, pixelDataLength / 2);
@@ -86,54 +130,78 @@ export function DicomImageViewer({ file }: DicomImageViewerProps) {
           pixelData = new Uint8Array(arrayBuffer, pixelDataOffset, pixelDataLength);
         }
 
-        // Calculate min/max if window values not provided
-        if (!windowCenter || !windowWidth) {
-          let minVal = Infinity;
-          let maxVal = -Infinity;
-          for (let i = 0; i < pixelData.length; i++) {
-            const val = pixelData[i] * slope + intercept;
-            if (val < minVal) minVal = val;
-            if (val > maxVal) maxVal = val;
-          }
-          windowCenter = (minVal + maxVal) / 2;
-          windowWidth = maxVal - minVal;
-        }
-
-        setImageData({
-          width: columns,
-          height: rows,
-          windowCenter,
-          windowWidth,
+        slices.push({
           pixelData,
-          slope,
-          intercept,
-          patientName,
-          studyDescription,
-          modality,
+          instanceNumber: 1,
+          sliceLocation: 0,
         });
-
-        toast.success("DICOM image loaded successfully");
-      } catch (err) {
-        console.error("Error loading DICOM:", err);
-        setError(err instanceof Error ? err.message : "Failed to load DICOM file");
-        toast.error("Failed to load DICOM file");
-      } finally {
-        setIsLoading(false);
       }
-    };
 
-    loadDicomFile();
-  }, [file]);
+      // Calculate min/max for window if not provided
+      if (!windowCenter || !windowWidth || windowCenter === 0 || windowWidth === 0) {
+        const firstSlice = slices[0].pixelData;
+        let minVal = Infinity;
+        let maxVal = -Infinity;
+        
+        // Sample pixels for faster calculation on large images
+        const step = Math.max(1, Math.floor(firstSlice.length / 10000));
+        for (let i = 0; i < firstSlice.length; i += step) {
+          const val = firstSlice[i] * slope + intercept;
+          if (val < minVal) minVal = val;
+          if (val > maxVal) maxVal = val;
+        }
+        
+        windowCenter = (minVal + maxVal) / 2;
+        windowWidth = Math.max(1, maxVal - minVal);
+      }
 
-  // Render the image to canvas
+      setImageData({
+        width: columns,
+        height: rows,
+        windowCenter,
+        windowWidth,
+        slices,
+        slope,
+        intercept,
+        patientName,
+        studyDescription,
+        modality,
+        bitsAllocated,
+        bitsStored,
+        highBit,
+        photometricInterpretation,
+      });
+
+      setCurrentSlice(0);
+      toast.success(`DICOM loaded: ${slices.length} slice(s)`);
+    } catch (err) {
+      console.error("Error loading DICOM:", err);
+      setError(err instanceof Error ? err.message : "Failed to load DICOM file");
+      toast.error("Failed to load DICOM file");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    if (!imageData || !canvasRef.current) return;
+    if (!file) {
+      setImageData(null);
+      return;
+    }
+    loadDicomFile(file);
+  }, [file, loadDicomFile]);
+
+  // Render the current slice to canvas
+  useEffect(() => {
+    if (!imageData || !canvasRef.current || imageData.slices.length === 0) return;
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const { width, height, pixelData, windowCenter, windowWidth, slope, intercept } = imageData;
+    const { width, height, slices, windowCenter, windowWidth, slope, intercept, photometricInterpretation } = imageData;
+    const slice = slices[Math.min(currentSlice, slices.length - 1)];
+    const pixelData = slice.pixelData;
 
     canvas.width = width;
     canvas.height = height;
@@ -142,24 +210,38 @@ export function DicomImageViewer({ file }: DicomImageViewerProps) {
     const data = imageDataCanvas.data;
 
     // Apply windowing with brightness/contrast adjustments
-    const adjustedWindowCenter = windowCenter - brightness * 100;
-    const adjustedWindowWidth = windowWidth / contrast;
+    const adjustedWindowCenter = windowCenter - brightness * (windowWidth / 10);
+    const adjustedWindowWidth = windowWidth / Math.max(0.1, contrast);
     const windowMin = adjustedWindowCenter - adjustedWindowWidth / 2;
     const windowMax = adjustedWindowCenter + adjustedWindowWidth / 2;
+    const windowRange = windowMax - windowMin;
 
-    for (let i = 0; i < pixelData.length; i++) {
-      // Apply slope/intercept
+    // Determine if we need to invert (MONOCHROME1)
+    const invert = photometricInterpretation === "MONOCHROME1";
+
+    for (let i = 0; i < pixelData.length && i < width * height; i++) {
+      // Apply slope/intercept (Hounsfield units conversion)
       const rawValue = pixelData[i] * slope + intercept;
       
-      // Apply windowing
+      // Apply windowing with proper clamping
       let normalizedValue: number;
-      if (rawValue <= windowMin) {
+      if (windowRange <= 0) {
+        normalizedValue = 128;
+      } else if (rawValue <= windowMin) {
         normalizedValue = 0;
       } else if (rawValue >= windowMax) {
         normalizedValue = 255;
       } else {
-        normalizedValue = ((rawValue - windowMin) / (windowMax - windowMin)) * 255;
+        normalizedValue = Math.round(((rawValue - windowMin) / windowRange) * 255);
       }
+
+      // Invert if MONOCHROME1
+      if (invert) {
+        normalizedValue = 255 - normalizedValue;
+      }
+
+      // Clamp final value
+      normalizedValue = Math.max(0, Math.min(255, normalizedValue));
 
       const pixelIndex = i * 4;
       data[pixelIndex] = normalizedValue;     // R
@@ -169,7 +251,19 @@ export function DicomImageViewer({ file }: DicomImageViewerProps) {
     }
 
     ctx.putImageData(imageDataCanvas, 0, 0);
-  }, [imageData, brightness, contrast]);
+  }, [imageData, brightness, contrast, currentSlice]);
+
+  // Handle scroll for slice navigation
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    if (!imageData || imageData.slices.length <= 1) return;
+    
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 1 : -1;
+    setCurrentSlice(prev => {
+      const newSlice = prev + delta;
+      return Math.max(0, Math.min(imageData.slices.length - 1, newSlice));
+    });
+  }, [imageData]);
 
   const handleZoomIn = () => setZoom((prev) => Math.min(prev + 0.25, 4));
   const handleZoomOut = () => setZoom((prev) => Math.max(prev - 0.25, 0.25));
@@ -177,14 +271,25 @@ export function DicomImageViewer({ file }: DicomImageViewerProps) {
     setZoom(1);
     setBrightness(0);
     setContrast(1);
+    setCurrentSlice(0);
   };
   const handleFit = () => {
     if (!viewerRef.current || !imageData) return;
     const containerWidth = viewerRef.current.clientWidth;
-    const containerHeight = viewerRef.current.clientHeight;
+    const containerHeight = viewerRef.current.clientHeight - 50; // Account for controls
     const scaleX = containerWidth / imageData.width;
     const scaleY = containerHeight / imageData.height;
     setZoom(Math.min(scaleX, scaleY) * 0.9);
+  };
+
+  const goToPreviousSlice = () => {
+    if (!imageData) return;
+    setCurrentSlice(prev => Math.max(0, prev - 1));
+  };
+
+  const goToNextSlice = () => {
+    if (!imageData) return;
+    setCurrentSlice(prev => Math.min(imageData.slices.length - 1, prev + 1));
   };
 
   if (!file) {
@@ -213,6 +318,8 @@ export function DicomImageViewer({ file }: DicomImageViewerProps) {
     );
   }
 
+  const totalSlices = imageData?.slices.length || 1;
+
   return (
     <div className="space-y-4">
       {/* Toolbar */}
@@ -231,38 +338,69 @@ export function DicomImageViewer({ file }: DicomImageViewerProps) {
             <RotateCcw className="w-4 h-4" />
           </Button>
         </div>
-        <div className="flex items-center gap-4 flex-wrap">
+        
+        {/* Slice Navigation */}
+        {totalSlices > 1 && (
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Brightness:</span>
-            <input
-              type="range"
-              min="-5"
-              max="5"
-              step="0.1"
-              value={brightness}
-              onChange={(e) => setBrightness(parseFloat(e.target.value))}
-              className="w-20 h-2 accent-primary"
-            />
+            <Button size="sm" variant="outline" onClick={goToPreviousSlice} disabled={currentSlice === 0}>
+              <ChevronUp className="w-4 h-4" />
+            </Button>
+            <span className="text-sm font-medium min-w-[80px] text-center">
+              {currentSlice + 1} / {totalSlices}
+            </span>
+            <Button size="sm" variant="outline" onClick={goToNextSlice} disabled={currentSlice >= totalSlices - 1}>
+              <ChevronDown className="w-4 h-4" />
+            </Button>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Contrast:</span>
-            <input
-              type="range"
-              min="0.1"
-              max="3"
-              step="0.1"
-              value={contrast}
-              onChange={(e) => setContrast(parseFloat(e.target.value))}
-              className="w-20 h-2 accent-primary"
-            />
-          </div>
+        )}
+      </div>
+
+      {/* Window/Level Controls */}
+      <div className="flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-2 flex-1 min-w-[150px]">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">Brightness:</span>
+          <Slider
+            min={-5}
+            max={5}
+            step={0.1}
+            value={[brightness]}
+            onValueChange={(value) => setBrightness(value[0])}
+            className="w-full"
+          />
+        </div>
+        <div className="flex items-center gap-2 flex-1 min-w-[150px]">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">Contrast:</span>
+          <Slider
+            min={0.1}
+            max={3}
+            step={0.1}
+            value={[contrast]}
+            onValueChange={(value) => setContrast(value[0])}
+            className="w-full"
+          />
         </div>
       </div>
+
+      {/* Slice Slider (if multiple slices) */}
+      {totalSlices > 1 && (
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">Slice:</span>
+          <Slider
+            min={0}
+            max={totalSlices - 1}
+            step={1}
+            value={[currentSlice]}
+            onValueChange={(value) => setCurrentSlice(value[0])}
+            className="flex-1"
+          />
+        </div>
+      )}
 
       {/* Image Display */}
       <div
         ref={viewerRef}
-        className="aspect-square bg-black rounded-lg flex items-center justify-center overflow-hidden border border-border"
+        className="aspect-square bg-black rounded-lg flex items-center justify-center overflow-hidden border border-border relative"
+        onWheel={handleWheel}
       >
         {imageData ? (
           <canvas
@@ -273,10 +411,18 @@ export function DicomImageViewer({ file }: DicomImageViewerProps) {
               transition: "transform 0.2s ease",
               maxWidth: "100%",
               maxHeight: "100%",
+              imageRendering: "pixelated",
             }}
           />
         ) : (
           <p className="text-muted-foreground">Processing image...</p>
+        )}
+        
+        {/* Slice indicator overlay */}
+        {totalSlices > 1 && (
+          <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs">
+            Slice {currentSlice + 1}/{totalSlices} • Scroll to navigate
+          </div>
         )}
       </div>
 
@@ -287,9 +433,13 @@ export function DicomImageViewer({ file }: DicomImageViewerProps) {
             {imageData.width} × {imageData.height}
           </Badge>
           <Badge variant="secondary">{imageData.modality}</Badge>
+          <Badge variant="secondary">{imageData.bitsStored}-bit</Badge>
           <Badge variant="outline">Patient: {imageData.patientName}</Badge>
           <Badge variant="outline">{imageData.studyDescription}</Badge>
           <Badge variant="outline">Zoom: {(zoom * 100).toFixed(0)}%</Badge>
+          {imageData.windowCenter && (
+            <Badge variant="outline">WC: {Math.round(imageData.windowCenter)} WW: {Math.round(imageData.windowWidth)}</Badge>
+          )}
         </div>
       )}
     </div>
