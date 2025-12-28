@@ -355,7 +355,7 @@ export default function CDSSPage() {
                 <div className="p-3 border rounded-lg">
                   <h4 className="font-medium text-sm">Diagnostic Confidence</h4>
                   <p className="text-xs text-muted-foreground mt-1">
-                    High confidence (>80%) results may require immediate clinical attention.
+                    High confidence (&gt;80%) results may require immediate clinical attention.
                   </p>
                 </div>
               </div>

@@ -13,7 +13,8 @@ import {
   User,
   CreditCard,
   Eye,
-  BarChart3
+  BarChart3,
+  Brain
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -34,6 +35,7 @@ export function Sidebar() {
     { to: "/patient-profile", icon: User, label: "My Profile", roles: ['patient'] },
     { to: "/billing", icon: CreditCard, label: "Billing", roles: ['patient', 'admin'] },
     { to: "/dicom-viewer", icon: Eye, label: "DICOM Viewer", roles: ['physician', 'patient'] },
+    { to: "/cdss", icon: Brain, label: "CDSS Analysis", roles: ['physician', 'admin'] },
     { to: "/physician-profile", icon: User, label: "My Profile", roles: ['physician'] },
   ].filter(item => item.roles.includes(user?.role || ''));
 

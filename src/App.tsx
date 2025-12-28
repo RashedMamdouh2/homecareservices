@@ -21,6 +21,7 @@ import NotFound from "./pages/NotFound";
 import Billing from "./pages/Billing";
 import DicomViewer from "./pages/DicomViewer";
 import Reports from "./pages/Reports";
+import CDSS from "./pages/CDSS";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -154,6 +155,16 @@ const AppRoutes = () => {
           <ProtectedRoute allowedRoles={['admin']}>
             <MainLayout>
               <Reports />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/cdss"
+        element={
+          <ProtectedRoute allowedRoles={['physician', 'admin']}>
+            <MainLayout>
+              <CDSS />
             </MainLayout>
           </ProtectedRoute>
         }
