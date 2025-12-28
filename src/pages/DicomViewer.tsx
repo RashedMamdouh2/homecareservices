@@ -13,7 +13,8 @@ import { DicomImageViewer } from "@/components/dicom/DicomImageViewer";
 export default function DicomViewer() {
   const [uploadedFiles, setUploadedFiles] = useState<DicomUploadResponse[]>([]);
   const [selectedFile, setSelectedFile] = useState<DicomUploadResponse | null>(null);
-  const [currentDicomFile, setCurrentDicomFile] = useState<File | null>(null);
+  const [currentDicomFiles, setCurrentDicomFiles] = useState<File[]>([]);
+  const [currentSlice, setCurrentSlice] = useState(0);
   const [analysis, setAnalysis] = useState<DicomAnalysisResult | null>(null);
 
   // Fetch existing analyses
@@ -50,12 +51,23 @@ export default function DicomViewer() {
   });
 
   const handleUpload = (data: DicomUploadRequest) => {
-    setCurrentDicomFile(data.file);
+    setCurrentDicomFiles(prev => [...prev, data.file]);
+    setCurrentSlice(currentDicomFiles.length); // Switch to newly uploaded file
     uploadMutation.mutate(data);
   };
 
   const handleFileSelect = (file: File | null) => {
-    setCurrentDicomFile(file);
+    if (file) {
+      setCurrentDicomFiles(prev => [...prev, file]);
+      setCurrentSlice(currentDicomFiles.length);
+    }
+  };
+
+  const handleMultipleFiles = (files: File[]) => {
+    // Sort files by name for consistent ordering
+    const sortedFiles = [...files].sort((a, b) => a.name.localeCompare(b.name));
+    setCurrentDicomFiles(sortedFiles);
+    setCurrentSlice(0);
   };
 
   const handleAnalysis = async () => {
@@ -73,6 +85,7 @@ export default function DicomViewer() {
           onUpload={handleUpload}
           isUploading={uploadMutation.isPending}
           onFileSelect={handleFileSelect}
+          onMultipleFiles={handleMultipleFiles}
         />
 
         {/* Viewer */}
@@ -85,13 +98,18 @@ export default function DicomViewer() {
               )}
             </div>
 
-            {currentDicomFile ? (
-              <DicomImageViewer file={currentDicomFile} />
+            {currentDicomFiles.length > 0 ? (
+              <DicomImageViewer 
+                files={currentDicomFiles} 
+                currentSlice={currentSlice}
+                onSliceChange={setCurrentSlice}
+              />
             ) : (
               <div className="aspect-square bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border">
                 <div className="text-center text-muted-foreground">
                   <Eye className="w-16 h-16 mx-auto mb-4" />
-                  <p>Select a DICOM file to view</p>
+                  <p>Select DICOM file(s) to view</p>
+                  <p className="text-xs mt-2">Upload multiple files for slice scrolling</p>
                 </div>
               </div>
             )}

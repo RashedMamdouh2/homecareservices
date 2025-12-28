@@ -7,7 +7,9 @@ import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
 
 interface DicomImageViewerProps {
-  file: File | null;
+  files: File[];
+  currentSlice?: number;
+  onSliceChange?: (slice: number) => void;
 }
 
 interface DicomImageData {
@@ -28,7 +30,7 @@ interface DicomImageData {
   photometricInterpretation: string;
 }
 
-export function DicomImageViewer({ file }: DicomImageViewerProps) {
+export function DicomImageViewer({ files, currentSlice = 0, onSliceChange }: DicomImageViewerProps) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [imageData, setImageData] = useState<DicomImageData | null>(null);
@@ -37,6 +39,12 @@ export function DicomImageViewer({ file }: DicomImageViewerProps) {
   const [windowWidth, setWindowWidth] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [internalSlice, setInternalSlice] = useState(0);
+  
+  const activeSlice = onSliceChange ? currentSlice : internalSlice;
+  const setActiveSlice = onSliceChange || setInternalSlice;
+  const totalSlices = files.length;
+  const currentFile = files[activeSlice] || null;
 
   const loadDicomFile = useCallback(async (dicomFile: File) => {
     setIsLoading(true);
@@ -179,12 +187,37 @@ export function DicomImageViewer({ file }: DicomImageViewerProps) {
   }, []);
 
   useEffect(() => {
-    if (!file) {
+    if (!currentFile) {
       setImageData(null);
       return;
     }
-    loadDicomFile(file);
-  }, [file, loadDicomFile]);
+    loadDicomFile(currentFile);
+  }, [currentFile, loadDicomFile]);
+
+  // Handle mouse wheel for slice scrolling
+  const handleWheel = useCallback((e: WheelEvent) => {
+    if (totalSlices <= 1) return;
+    e.preventDefault();
+    
+    if (e.deltaY > 0) {
+      // Scroll down - next slice
+      setActiveSlice(Math.min(activeSlice + 1, totalSlices - 1));
+    } else {
+      // Scroll up - previous slice
+      setActiveSlice(Math.max(activeSlice - 1, 0));
+    }
+  }, [activeSlice, totalSlices, setActiveSlice]);
+
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer || totalSlices <= 1) return;
+    
+    viewer.addEventListener('wheel', handleWheel, { passive: false });
+    return () => viewer.removeEventListener('wheel', handleWheel);
+  }, [handleWheel, totalSlices]);
+
+  const handlePrevSlice = () => setActiveSlice(Math.max(activeSlice - 1, 0));
+  const handleNextSlice = () => setActiveSlice(Math.min(activeSlice + 1, totalSlices - 1));
 
   // Render the image to canvas
   useEffect(() => {
@@ -295,7 +328,7 @@ export function DicomImageViewer({ file }: DicomImageViewerProps) {
     }
   };
 
-  if (!file) {
+  if (files.length === 0) {
     return null;
   }
 
@@ -339,6 +372,21 @@ export function DicomImageViewer({ file }: DicomImageViewerProps) {
             <RotateCcw className="w-4 h-4" />
           </Button>
         </div>
+        
+        {/* Slice Navigation */}
+        {totalSlices > 1 && (
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={handlePrevSlice} disabled={activeSlice === 0}>
+              <ChevronUp className="w-4 h-4" />
+            </Button>
+            <span className="text-sm font-medium min-w-[80px] text-center">
+              Slice {activeSlice + 1} / {totalSlices}
+            </span>
+            <Button size="sm" variant="outline" onClick={handleNextSlice} disabled={activeSlice === totalSlices - 1}>
+              <ChevronDown className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Window Presets */}
@@ -406,12 +454,33 @@ export function DicomImageViewer({ file }: DicomImageViewerProps) {
           </Badge>
           <Badge variant="secondary">{imageData.modality}</Badge>
           <Badge variant="secondary">{imageData.bitsStored}-bit</Badge>
+          {totalSlices > 1 && (
+            <Badge variant="default">Series: {totalSlices} slices</Badge>
+          )}
           <Badge variant="outline">Patient: {imageData.patientName}</Badge>
           <Badge variant="outline">{imageData.studyDescription}</Badge>
           <Badge variant="outline">Zoom: {(zoom * 100).toFixed(0)}%</Badge>
           <Badge variant="outline">
             Range: {Math.round(imageData.minPixelValue)} to {Math.round(imageData.maxPixelValue)}
           </Badge>
+        </div>
+      )}
+
+      {/* Slice Slider for multi-slice series */}
+      {totalSlices > 1 && (
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground w-16">Slice:</span>
+          <Slider
+            min={0}
+            max={totalSlices - 1}
+            step={1}
+            value={[activeSlice]}
+            onValueChange={(value) => setActiveSlice(value[0])}
+            className="flex-1"
+          />
+          <span className="text-xs text-muted-foreground w-20 text-right">
+            {activeSlice + 1} of {totalSlices}
+          </span>
         </div>
       )}
     </div>
