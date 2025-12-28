@@ -9,9 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useStripe, useElements, CardElement } from "@stripe/react-stripe-js";
 import { toast } from "sonner";
-import { Plus, FileText } from "lucide-react";
+import { Plus, FileText, Download, TrendingUp, DollarSign, CreditCard, Calendar } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { paymentApi, InvoiceDto } from "@/lib/api";
+import { paymentApi, InvoiceDto, PaymentHistoryDto, patientsApi, PatientSendDto } from "@/lib/api";
 
 export default function Billing() {
   const { user, isAdmin } = useAuth();
@@ -34,18 +34,16 @@ export default function Billing() {
     queryFn: paymentApi.getInvoices,
   });
 
+  // Fetch payment history
+  const { data: paymentHistory = [] } = useQuery({
+    queryKey: ['paymentHistory'],
+    queryFn: paymentApi.getPaymentHistory,
+  });
+
   // Fetch patients (for admin bill generation)
   const { data: patients = [] } = useQuery({
     queryKey: ['patients'],
-    queryFn: async () => {
-      const res = await fetch(`${'https://homecareservice.runasp.net/api'}/patients`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-        },
-      });
-      if (!res.ok) throw new Error('Failed to fetch patients');
-      return res.json();
-    },
+    queryFn: patientsApi.getAll,
     enabled: isAdmin,
   });
 
@@ -158,9 +156,76 @@ export default function Billing() {
     });
   };
 
+  // Calculate financial summary
+  const calculateFinancialSummary = () => {
+    const totalInvoiced = invoices.reduce((sum, invoice) => sum + invoice.Amount, 0);
+    const totalPaid = invoices
+      .filter(invoice => invoice.Status === 'paid')
+      .reduce((sum, invoice) => sum + invoice.Amount, 0);
+    const totalPending = invoices
+      .filter(invoice => invoice.Status === 'pending')
+      .reduce((sum, invoice) => sum + invoice.Amount, 0);
+    const totalOverdue = invoices
+      .filter(invoice => {
+        if (invoice.Status !== 'unpaid' || !invoice.DueDate) return false;
+        return new Date(invoice.DueDate) < new Date();
+      })
+      .reduce((sum, invoice) => sum + invoice.Amount, 0);
+
+    return { totalInvoiced, totalPaid, totalPending, totalOverdue };
+  };
+
+  const financialSummary = calculateFinancialSummary();
+
+  // Download invoice as PDF (placeholder - would need backend implementation)
+  const handleDownloadInvoice = (invoice: InvoiceDto) => {
+    toast.info("Invoice download feature coming soon!");
+    // This would typically call an API endpoint to generate and download a PDF
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader title="Billing & Payments" />
+
+      {/* Financial Summary Dashboard */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+        <Card className="p-6">
+          <div className="flex items-center">
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <div className="ml-2">
+              <p className="text-sm font-medium text-muted-foreground">Total Invoiced</p>
+              <p className="text-2xl font-bold">${financialSummary.totalInvoiced.toFixed(2)}</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="p-6">
+          <div className="flex items-center">
+            <CreditCard className="h-4 w-4 text-green-600" />
+            <div className="ml-2">
+              <p className="text-sm font-medium text-muted-foreground">Total Paid</p>
+              <p className="text-2xl font-bold text-green-600">${financialSummary.totalPaid.toFixed(2)}</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="p-6">
+          <div className="flex items-center">
+            <Calendar className="h-4 w-4 text-yellow-600" />
+            <div className="ml-2">
+              <p className="text-sm font-medium text-muted-foreground">Pending</p>
+              <p className="text-2xl font-bold text-yellow-600">${financialSummary.totalPending.toFixed(2)}</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="p-6">
+          <div className="flex items-center">
+            <TrendingUp className="h-4 w-4 text-red-600" />
+            <div className="ml-2">
+              <p className="text-sm font-medium text-muted-foreground">Overdue</p>
+              <p className="text-2xl font-bold text-red-600">${financialSummary.totalOverdue.toFixed(2)}</p>
+            </div>
+          </div>
+        </Card>
+      </div>
 
       {isAdmin && (
         <Card className="p-6">
@@ -191,9 +256,9 @@ export default function Billing() {
                       <SelectValue placeholder="Select patient" />
                     </SelectTrigger>
                     <SelectContent>
-                      {patients.map((patient: any) => (
+                      {patients.map((patient: PatientSendDto) => (
                         <SelectItem key={patient.id} value={patient.id.toString()}>
-                          {patient.firstName} {patient.lastName}
+                          {patient.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -294,6 +359,14 @@ export default function Billing() {
                     <Badge variant={invoice.Status === 'paid' ? 'default' : invoice.Status === 'pending' ? 'secondary' : 'destructive'}>
                       {invoice.Status}
                     </Badge>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDownloadInvoice(invoice)}
+                    >
+                      <Download className="w-4 h-4 mr-1" />
+                      Download
+                    </Button>
                     {invoice.Status === 'unpaid' && (
                       <Button
                         onClick={() => handlePayment(invoice)}
@@ -310,6 +383,35 @@ export default function Billing() {
           )}
         </Card>
       </div>
+
+      {/* Payment History */}
+      <Card className="p-6">
+        <h3 className="text-lg font-semibold mb-4">Payment History</h3>
+        {paymentHistory.length === 0 ? (
+          <div className="text-center py-8">
+            <CreditCard className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+            <p className="text-muted-foreground">No payment history found</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {paymentHistory.map((payment: PaymentHistoryDto, index: number) => (
+              <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                <div>
+                  <p className="font-medium">${payment.amount}</p>
+                  <p className="text-sm text-muted-foreground">{payment.paymentDate}</p>
+                  <p className="text-sm text-muted-foreground">Method: {payment.paymentMethod}</p>
+                  {payment.description && (
+                    <p className="text-sm text-muted-foreground">{payment.description}</p>
+                  )}
+                </div>
+                <Badge variant={payment.status === 'succeeded' ? 'default' : 'destructive'}>
+                  {payment.status}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

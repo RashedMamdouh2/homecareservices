@@ -541,10 +541,14 @@ export interface PaymentIntentDto {
   currency: string;
 }
 
-export interface PaymentConfirmationDto {
-  paymentIntentId: string;
-  status: string;
+export interface PaymentHistoryDto {
+  id: number;
   amount: number;
+  paymentDate: string;
+  paymentMethod: string;
+  status: string;
+  invoiceId?: number;
+  description?: string;
 }
 
 export const paymentApi = {
@@ -595,7 +599,7 @@ export const paymentApi = {
   },
 
   // Get payment history
-  getPaymentHistory: async (): Promise<any[]> => {
+  getPaymentHistory: async (): Promise<PaymentHistoryDto[]> => {
     const res = await fetch(`${BASE_URL}/payments/history`, {
       headers: getAuthHeaders(),
     });

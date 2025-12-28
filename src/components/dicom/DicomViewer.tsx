@@ -33,6 +33,7 @@ import {
   ZoomOut,
   Move3D,
   Layers,
+  Brain,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { dicomApi, DicomAnalysisResult, BASE_URL, getAuthHeaders } from '@/lib/api';
@@ -40,6 +41,10 @@ import { useAuth } from '@/contexts/AuthContext';
 
 // Three.js imports for 3D volume rendering
 import * as THREE from 'three';
+import { OrbitControls } from 'three-stdlib';
+
+// Import CDSS Analysis component
+import CDSSAnalysis from './CDSSAnalysis';
 
 interface DicomViewerProps {
   open: boolean;
@@ -58,15 +63,22 @@ export function DicomViewer({
   const queryClient = useQueryClient();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [currentDicomId, setCurrentDicomId] = useState<string | null>(dicomId || null);
-  const [viewMode, setViewMode] = useState<'2d' | '3d'>('3d');
-  const [is3DLoading, setIs3DLoading] = useState(false);
+  const [viewMode, setViewMode] = useState<'2d' | '3d' | 'mpr'>('3d');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [windowLevel, setWindowLevel] = useState({ center: 40, width: 400 });
+  const [currentSlice, setCurrentSlice] = useState(0);
+  const [totalSlices, setTotalSlices] = useState(1);
+  const [showCrosshairs, setShowCrosshairs] = useState(true);
 
   // Three.js 3D viewer refs
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const viewerRef = useRef<HTMLDivElement>(null);
+  const controlsRef = useRef<OrbitControls | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const volumeDataRef = useRef<Float32Array | null>(null);
 
   // Fetch DICOM files for patient
   const { data: dicomFiles, isLoading: loadingDicoms } = useQuery({
@@ -108,18 +120,6 @@ export function DicomViewer({
     },
     onError: () => {
       toast.error('Failed to upload DICOM file');
-    },
-  });
-
-  // Analyze DICOM mutation
-  const analyzeMutation = useMutation({
-    mutationFn: (dicomId: string) => dicomApi.analyzeDicom(dicomId),
-    onSuccess: (result) => {
-      toast.success('DICOM analysis completed');
-      console.log('Analysis result:', result);
-    },
-    onError: () => {
-      toast.error('Failed to analyze DICOM file');
     },
   });
 
@@ -352,42 +352,19 @@ export function DicomViewer({
       // For now, create a simple 3D visualization
       // In a real implementation, you'd parse the DICOM volume data
       // and create proper volume rendering
-      await createVolumeVisualization(scene);
+      const dicomFile = new File([dicomBlob], `dicom_${currentDicomId}.dcm`, { type: 'application/dicom' });
+      await createVolumeVisualization([dicomFile]);
 
       // Add orbit controls for interaction
-      const controls = {
-        isMouseDown: false,
-        previousMousePosition: { x: 0, y: 0 },
-        rotationSpeed: 0.01,
-      };
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.enableZoom = true;
+      controls.enableRotate = true;
+      controls.enablePan = true;
 
-      // Mouse event handlers
-      const handleMouseDown = (event: MouseEvent) => {
-        controls.isMouseDown = true;
-        controls.previousMousePosition = { x: event.clientX, y: event.clientY };
-      };
-
-      const handleMouseMove = (event: MouseEvent) => {
-        if (!controls.isMouseDown || !scene) return;
-
-        const deltaX = event.clientX - controls.previousMousePosition.x;
-        const deltaY = event.clientY - controls.previousMousePosition.y;
-
-        // Rotate the scene based on mouse movement
-        scene.rotation.y += deltaX * controls.rotationSpeed;
-        scene.rotation.x += deltaY * controls.rotationSpeed;
-
-        controls.previousMousePosition = { x: event.clientX, y: event.clientY };
-      };
-
-      const handleMouseUp = () => {
-        controls.isMouseDown = false;
-      };
-
-      // Add event listeners
-      renderer.domElement.addEventListener('mousedown', handleMouseDown);
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
+      // Store controls ref
+      controlsRef.current = controls;
 
       // Animation loop
       const animate = () => {
@@ -406,8 +383,189 @@ export function DicomViewer({
     }
   };
 
+  // DICOM volume parsing function
+  const parseDicomVolume = useCallback(async (files: File[]): Promise<{
+    data: Float32Array;
+    width: number;
+    height: number;
+    depth: number;
+  }> => {
+    const dicomParser = await import('dicom-parser');
+
+    // Sort files by instance number or slice location
+    const sortedFiles = files.sort((a, b) => {
+      // This is a simplified sorting - in production you'd parse DICOM headers
+      return a.name.localeCompare(b.name);
+    });
+
+    const slices: Float32Array[] = [];
+    let width = 0;
+    let height = 0;
+
+    for (const file of sortedFiles) {
+      const arrayBuffer = await file.arrayBuffer();
+      const dataSet = dicomParser.parseDicom(arrayBuffer);
+
+      // Extract pixel data
+      const pixelDataElement = dataSet.elements.x7fe00008 || dataSet.elements.x7fe00010;
+      if (!pixelDataElement) continue;
+
+      const pixelData = new Uint16Array(
+        arrayBuffer,
+        pixelDataElement.dataOffset,
+        pixelDataElement.length / 2
+      );
+
+      // Get dimensions
+      const rows = dataSet.uint16('x00280010');
+      const cols = dataSet.uint16('x00280011');
+
+      if (!width) width = cols;
+      if (!height) height = rows;
+
+      // Convert to float32 and normalize
+      const sliceData = new Float32Array(pixelData.length);
+      const maxValue = Math.max(...pixelData);
+      const minValue = Math.min(...pixelData);
+
+      for (let i = 0; i < pixelData.length; i++) {
+        sliceData[i] = (pixelData[i] - minValue) / (maxValue - minValue);
+      }
+
+      slices.push(sliceData);
+    }
+
+    // Create 3D volume array
+    const depth = slices.length;
+    const volumeData = new Float32Array(width * height * depth);
+
+    for (let z = 0; z < depth; z++) {
+      const slice = slices[z];
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const sliceIndex = y * width + x;
+          const volumeIndex = z * (width * height) + y * width + x;
+          volumeData[volumeIndex] = slice[sliceIndex];
+        }
+      }
+    }
+
+    return { data: volumeData, width, height, depth };
+  }, []);
+
+  // Volume rendering function
+  const createVolumeVisualization = useCallback(async (dicomFiles: File[]) => {
+    if (!sceneRef.current || !cameraRef.current || !rendererRef.current) return;
+
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // Parse DICOM files and create volume data
+      const volumeData = await parseDicomVolume(dicomFiles);
+      volumeDataRef.current = volumeData.data;
+
+      // Create volume texture
+      const volumeTexture = new THREE.Data3DTexture(volumeData.data, volumeData.width, volumeData.height, volumeData.depth);
+      volumeTexture.format = THREE.RedFormat;
+      volumeTexture.type = THREE.FloatType;
+      volumeTexture.minFilter = THREE.LinearFilter;
+      volumeTexture.magFilter = THREE.LinearFilter;
+      volumeTexture.needsUpdate = true;
+
+      // Create volume geometry
+      const geometry = new THREE.BoxGeometry(volumeData.width, volumeData.height, volumeData.depth);
+      geometry.translate(volumeData.width / 2, volumeData.height / 2, volumeData.depth / 2);
+
+      // Create volume material with custom shader
+      const material = new THREE.ShaderMaterial({
+        uniforms: {
+          volumeTexture: { value: volumeTexture },
+          windowLevel: { value: [windowLevel.center, windowLevel.width] },
+          dimensions: { value: [volumeData.width, volumeData.height, volumeData.depth] },
+          slice: { value: currentSlice },
+          totalSlices: { value: totalSlices },
+          showCrosshairs: { value: showCrosshairs }
+        },
+        vertexShader: `
+          varying vec3 vPosition;
+          varying vec3 vWorldPosition;
+
+          void main() {
+            vPosition = position;
+            vWorldPosition = (modelMatrix * vec4(position, 1.0)).xyz;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: `
+          uniform sampler3D volumeTexture;
+          uniform vec2 windowLevel;
+          uniform vec3 dimensions;
+          uniform float slice;
+          uniform float totalSlices;
+          uniform bool showCrosshairs;
+
+          varying vec3 vPosition;
+          varying vec3 vWorldPosition;
+
+          void main() {
+            vec3 texCoord = vPosition / dimensions;
+
+            // Sample volume data
+            float intensity = texture(volumeTexture, texCoord).r;
+
+            // Apply window/level adjustment
+            float windowedValue = (intensity - windowLevel.x + windowLevel.y / 2.0) / windowLevel.y;
+            windowedValue = clamp(windowedValue, 0.0, 1.0);
+
+            // Apply transfer function (grayscale for now)
+            vec3 color = vec3(windowedValue);
+
+            // Add crosshairs if enabled
+            if (showCrosshairs) {
+              vec3 worldPos = vWorldPosition;
+              float crosshairThickness = 0.5;
+              if (abs(worldPos.x - dimensions.x / 2.0) < crosshairThickness ||
+                  abs(worldPos.y - dimensions.y / 2.0) < crosshairThickness ||
+                  abs(worldPos.z - dimensions.z / 2.0) < crosshairThickness) {
+                color = mix(color, vec3(1.0, 0.0, 0.0), 0.7);
+              }
+            }
+
+            gl_FragColor = vec4(color, 1.0);
+          }
+        `,
+        transparent: true,
+        side: THREE.BackSide
+      });
+
+      // Create mesh and add to scene
+      const volumeMesh = new THREE.Mesh(geometry, material);
+      sceneRef.current.add(volumeMesh);
+
+      // Update state
+      setTotalSlices(volumeData.depth);
+      setIsLoading(false);
+
+      // Start render loop
+      const animate = () => {
+        animationFrameRef.current = requestAnimationFrame(animate);
+        if (controlsRef.current) {
+          controlsRef.current.update();
+        }
+        rendererRef.current?.render(sceneRef.current!, cameraRef.current!);
+      };
+      animate();
+
+    } catch (err) {
+      console.error('Error creating volume visualization:', err);
+      setError('Failed to create volume visualization');
+      setIsLoading(false);
+    }
+  }, [windowLevel, currentSlice, totalSlices, showCrosshairs]);
+
   // Create a simple volume visualization
-  const createVolumeVisualization = async (scene: THREE.Scene) => {
+  const createVolumeVisualizationOld = async (scene: THREE.Scene) => {
     // Create a simple 3D cube to represent the volume
     // In a real implementation, this would be replaced with actual volume rendering
     const geometry = new THREE.BoxGeometry(1, 1, 1);
@@ -460,6 +618,30 @@ export function DicomViewer({
       cameraRef.current.position.add(direction.multiplyScalar(0.2));
     }
   };
+
+  // Update shader uniforms when state changes
+  useEffect(() => {
+    if (sceneRef.current) {
+      sceneRef.current.traverse((child) => {
+        if (child instanceof THREE.Mesh && child.material instanceof THREE.ShaderMaterial) {
+          const material = child.material as THREE.ShaderMaterial;
+          if (material.uniforms.windowLevel) {
+            material.uniforms.windowLevel.value = [windowLevel.center, windowLevel.width];
+          }
+          if (material.uniforms.slice) {
+            material.uniforms.slice.value = currentSlice;
+          }
+          if (material.uniforms.totalSlices) {
+            material.uniforms.totalSlices.value = totalSlices;
+          }
+          if (material.uniforms.showCrosshairs) {
+            material.uniforms.showCrosshairs.value = showCrosshairs;
+          }
+          material.needsUpdate = true;
+        }
+      });
+    }
+  }, [windowLevel, currentSlice, totalSlices, showCrosshairs]);
 
   // Initialize 3D viewer when DICOM is selected and 3D mode is active
   useEffect(() => {
@@ -649,6 +831,72 @@ export function DicomViewer({
               </div>
             </Card>
 
+            {/* Advanced 3D Controls */}
+            {viewMode === '3d' && currentDicomId && (
+              <Card className="p-4">
+                <h3 className="font-semibold mb-3">Advanced 3D Controls</h3>
+                <div className="space-y-4">
+                  {/* Window/Level Controls */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Window/Level</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-xs">Center: {windowLevel.center}</Label>
+                        <Input
+                          type="range"
+                          min="-1000"
+                          max="3000"
+                          value={windowLevel.center}
+                          onChange={(e) => setWindowLevel(prev => ({ ...prev, center: parseInt(e.target.value) }))}
+                          className="w-full"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Width: {windowLevel.width}</Label>
+                        <Input
+                          type="range"
+                          min="1"
+                          max="4000"
+                          value={windowLevel.width}
+                          onChange={(e) => setWindowLevel(prev => ({ ...prev, width: parseInt(e.target.value) }))}
+                          className="w-full"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Slice Navigation */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Slice Navigation</Label>
+                    <div>
+                      <Label className="text-xs">Current Slice: {currentSlice + 1} / {totalSlices}</Label>
+                      <Input
+                        type="range"
+                        min="0"
+                        max={Math.max(0, totalSlices - 1)}
+                        value={currentSlice}
+                        onChange={(e) => setCurrentSlice(parseInt(e.target.value))}
+                        className="w-full"
+                        disabled={totalSlices <= 1}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Crosshairs Toggle */}
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="crosshairs"
+                      checked={showCrosshairs}
+                      onChange={(e) => setShowCrosshairs(e.target.checked)}
+                      className="rounded"
+                    />
+                    <Label htmlFor="crosshairs" className="text-sm">Show Crosshairs</Label>
+                  </div>
+                </div>
+              </Card>
+            )}
+
             {/* Third-Party Service Integration */}
             <Card className="p-4">
               <h3 className="font-semibold mb-3">Professional DICOM Viewers</h3>
@@ -790,49 +1038,26 @@ export function DicomViewer({
               </TabsList>
 
               <TabsContent value="analysis" className="space-y-4">
-                <Card className="p-4">
-                  <h3 className="font-semibold mb-3">AI Analysis Results</h3>
-                  {analyzeMutation.isPending ? (
-                    <div className="flex items-center justify-center py-8">
-                      <LoadingSpinner />
-                      <span className="ml-2">Analyzing DICOM file...</span>
-                    </div>
-                  ) : analyzeMutation.isError ? (
+                {currentDicomId ? (
+                  <CDSSAnalysis
+                    dicomId={currentDicomId}
+                    patientId={patientId}
+                    onAnalysisComplete={(result) => {
+                      console.log('CDSS Analysis completed:', result);
+                      // You can add additional logic here when analysis is complete
+                    }}
+                  />
+                ) : (
+                  <Card className="p-4">
                     <div className="text-center py-8">
-                      <p className="text-red-600 mb-2">Analysis failed</p>
+                      <Brain className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                      <h3 className="text-lg font-semibold mb-2">No DICOM File Selected</h3>
                       <p className="text-sm text-muted-foreground">
-                        The DICOM analysis service may be temporarily unavailable. Please try again later.
+                        Please select or upload a DICOM file to enable Clinical Decision Support System analysis.
                       </p>
                     </div>
-                  ) : analyzeMutation.data ? (
-                    <div className="space-y-3">
-                      <div>
-                        <Label className="text-sm font-medium">Findings:</Label>
-                        <p className="text-sm text-muted-foreground">
-                          {analyzeMutation.data.findings}
-                        </p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium">Confidence:</Label>
-                        <Badge variant="outline">
-                          {Math.round(analyzeMutation.data.confidence * 100)}%
-                        </Badge>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium">Recommendations:</Label>
-                        <p className="text-sm text-muted-foreground">
-                          {analyzeMutation.data.recommendations}
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <p className="text-sm text-muted-foreground">
-                        No analysis results available. Click "Analyze with AI" to generate insights.
-                      </p>
-                    </div>
-                  )}
-                </Card>
+                  </Card>
+                )}
               </TabsContent>
 
               <TabsContent value="annotations" className="space-y-4">
