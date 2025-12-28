@@ -47,7 +47,7 @@ export interface AppointmentCreateDto {
   startTime: string;
   endTime: string;
   patientId: number;
-  PhysicianId: number;
+  physicianId: number;
   meetingAddress: string;
   physicianNotes: string;
 }
@@ -163,6 +163,7 @@ export const appointmentsApi = {
   },
   
   create: async (data: AppointmentCreateDto): Promise<void> => {
+    console.log("Appointment booking data being sent:", data);
     const res = await fetch(`${BASE_URL}/Appointments/BookAppointment`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...getAuthHeaders() },
@@ -496,12 +497,19 @@ export const physicianScheduleApi = {
   },
 
   addFeedback: async (physicianId: number, data: FeedbackCreateDto): Promise<void> => {
+    console.log("Feedback data being sent:", data);
     const res = await fetch(`${BASE_URL}/Physician/feedbacks/${physicianId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...getAuthHeaders() },
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error("Failed to add feedback");
+    if (!res.ok) {
+      const errorText = await res.text();
+      if (res.status === 404) {
+        throw new Error("Feedback feature is temporarily unavailable. Please contact support.");
+      }
+      throw new Error(`Failed to add feedback: ${errorText || res.statusText}`);
+    }
   },
 };
 

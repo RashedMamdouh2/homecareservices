@@ -112,10 +112,16 @@ export function EditAppointmentDialog({
       toast.error("Please fill in all required fields");
       return;
     }
+
+    // Combine date with time to create full datetime strings
+    const appointmentDateTime = `${appointmentDate}T${startTime}.000Z`;
+    const startTimeFull = `${appointmentDate}T${startTime}.000Z`;
+    const endTimeFull = `${appointmentDate}T${endTime}.000Z`;
+
     mutation.mutate({
-      appointmentDate,
-      startTime,
-      endTime,
+      appointmentDate: appointmentDateTime,
+      startTime: startTimeFull,
+      endTime: endTimeFull,
       patientId: parseInt(patientId),
       physicianId: parseInt(physicianId),
       meetingAddress,

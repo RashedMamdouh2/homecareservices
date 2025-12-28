@@ -29,6 +29,7 @@ export function AddFeedbackDialog({ physicianId }: AddFeedbackDialogProps) {
 
   const addMutation = useMutation({
     mutationFn: () => {
+      console.log("Current user from auth context:", user);
       if (!user?.patientId) {
         throw new Error("User patient ID not found");
       }
@@ -51,7 +52,11 @@ export function AddFeedbackDialog({ physicianId }: AddFeedbackDialogProps) {
     },
     onError: (error) => {
       console.error("Feedback submission error:", error);
-      toast.error(error.message || "Failed to submit feedback");
+      if (error.message?.includes("404") || error.message?.includes("Not Found")) {
+        toast.error("Feedback feature is temporarily unavailable. Please contact support.");
+      } else {
+        toast.error(error.message || "Failed to submit feedback");
+      }
     },
   });
 
