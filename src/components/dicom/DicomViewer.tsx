@@ -48,6 +48,17 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { dicomApi, DicomAnalysisResult, BASE_URL, getAuthHeaders } from '@/lib/api';
+import {
+  RenderingEngine,
+  Enums,
+  volumeLoader,
+  imageLoader,
+  getRenderingEngine,
+  StackViewport,
+  VolumeViewport,
+} from '@cornerstonejs/core';
+import { init as csInit, addTool, ToolGroupManager } from '@cornerstonejs/tools';
+import dicomParser from 'dicom-parser';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface DicomViewerProps {
@@ -78,6 +89,12 @@ export function DicomViewer({
   const [currentSlice, setCurrentSlice] = useState(0);
   const [totalSlices, setTotalSlices] = useState(1);
   const [viewMode, setViewMode] = useState<'2d' | '3d' | 'mpr'>('2d');
+
+  // Cornerstone.js state
+  const [isCornerstoneInitialized, setIsCornerstoneInitialized] = useState(false);
+  const [renderingEngine, setRenderingEngine] = useState<RenderingEngine | null>(null);
+  const [viewportId, setViewportId] = useState<string>('dicom-viewport');
+  const [toolGroup, setToolGroup] = useState<any>(null);
 
   // Fetch DICOM files for patient
   const { data: dicomFiles, isLoading: loadingDicoms } = useQuery({
@@ -174,44 +191,141 @@ export function DicomViewer({
     }
   };
 
-  // Mock DICOM rendering (in production, this would use Cornerstone.js)
+  // Initialize Cornerstone.js
   useEffect(() => {
-    if (canvasRef.current && currentDicomId) {
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        // Clear canvas
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const initializeCornerstone = async () => {
+      if (isCornerstoneInitialized) return;
 
-        // Mock DICOM image rendering
-        ctx.fillStyle = '#f0f0f0';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      try {
+        // Initialize Cornerstone.js
+        await csInit();
 
-        // Draw mock medical image
-        ctx.fillStyle = '#666';
-        ctx.font = '16px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('DICOM Image Viewer', canvas.width / 2, canvas.height / 2 - 20);
-        ctx.fillText(`File: ${currentDicomId}`, canvas.width / 2, canvas.height / 2 + 20);
-        ctx.fillText(`Slice: ${currentSlice + 1}/${totalSlices}`, canvas.width / 2, canvas.height / 2 + 60);
+        // Create rendering engine
+        const renderingEngineId = 'dicom-rendering-engine';
+        const engine = new RenderingEngine(renderingEngineId);
+        setRenderingEngine(engine);
 
-        // Apply transformations
-        ctx.save();
-        ctx.translate(canvas.width / 2, canvas.height / 2);
-        ctx.scale(zoom, zoom);
-        ctx.rotate((rotation * Math.PI) / 180);
+        // Create tool group
+        const toolGroupId = 'dicom-tool-group';
+        const toolGroup = ToolGroupManager.createToolGroup(toolGroupId);
+        setToolGroup(toolGroup);
 
-        // Draw mock anatomical structure
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.ellipse(-50, -30, 40, 25, 0, 0, 2 * Math.PI);
-        ctx.stroke();
-
-        ctx.restore();
+        setIsCornerstoneInitialized(true);
+      } catch (error) {
+        console.error('Failed to initialize Cornerstone.js:', error);
+        toast.error('Failed to initialize DICOM viewer');
       }
+    };
+
+    if (open) {
+      initializeCornerstone();
     }
-  }, [currentDicomId, zoom, rotation, brightness, contrast, currentSlice, totalSlices]);
+
+    return () => {
+      // Cleanup on unmount
+      if (renderingEngine) {
+        renderingEngine.destroy();
+      }
+    };
+  }, [open, isCornerstoneInitialized]);
+
+  // Load DICOM image when file is selected
+  useEffect(() => {
+    const loadDicomImage = async () => {
+      if (!currentDicomId || !isCornerstoneInitialized || !renderingEngine || !canvasRef.current) return;
+
+      try {
+        // Download DICOM file
+        const dicomBlob = await dicomApi.downloadDicom(currentDicomId);
+        const dicomArrayBuffer = await dicomBlob.arrayBuffer();
+
+        // Parse DICOM data
+        const dicomDataSet = dicomParser.parseDicom(new Uint8Array(dicomArrayBuffer));
+
+        // Extract image information
+        const rows = dicomDataSet.uint16('x0028', 'x0010');
+        const cols = dicomDataSet.uint16('x0028', 'x0011');
+        const bitsAllocated = dicomDataSet.uint16('x0028', 'x0100');
+        const pixelDataElement = dicomDataSet.elements.x7fe00010;
+
+        if (!pixelDataElement) {
+          throw new Error('No pixel data found in DICOM file');
+        }
+
+        // Get pixel data
+        let pixelData;
+        if (bitsAllocated === 16) {
+          pixelData = new Uint16Array(dicomArrayBuffer, pixelDataElement.dataOffset, pixelDataElement.length / 2);
+        } else {
+          pixelData = new Uint8Array(dicomArrayBuffer, pixelDataElement.dataOffset, pixelDataElement.length);
+        }
+
+        // Create canvas for rendering
+        const canvas = canvasRef.current;
+        canvas.width = cols;
+        canvas.height = rows;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        // Create ImageData from pixel data
+        const imageData = ctx.createImageData(cols, rows);
+        const data = imageData.data;
+
+        // Convert pixel data to RGBA (grayscale)
+        const maxValue = bitsAllocated === 16 ? 65535 : 255;
+        for (let i = 0; i < pixelData.length; i++) {
+          const gray = Math.floor((pixelData[i] / maxValue) * 255);
+          const index = i * 4;
+          data[index] = gray;     // R
+          data[index + 1] = gray; // G
+          data[index + 2] = gray; // B
+          data[index + 3] = 255;  // A
+        }
+
+        // Apply brightness and contrast adjustments
+        const adjustedData = new Uint8ClampedArray(data);
+        for (let i = 0; i < adjustedData.length; i += 4) {
+          let r = adjustedData[i];
+          let g = adjustedData[i + 1];
+          let b = adjustedData[i + 2];
+
+          // Apply contrast
+          r = ((r - 128) * (contrast / 100 + 1)) + 128;
+          g = ((g - 128) * (contrast / 100 + 1)) + 128;
+          b = ((b - 128) * (contrast / 100 + 1)) + 128;
+
+          // Apply brightness
+          r += brightness;
+          g += brightness;
+          b += brightness;
+
+          // Clamp values
+          adjustedData[i] = Math.max(0, Math.min(255, r));
+          adjustedData[i + 1] = Math.max(0, Math.min(255, g));
+          adjustedData[i + 2] = Math.max(0, Math.min(255, b));
+        }
+
+        // Create final image data
+        const finalImageData = new ImageData(adjustedData, cols, rows);
+        ctx.putImageData(finalImageData, 0, 0);
+
+        // Apply zoom and rotation using CSS transforms
+        canvas.style.transform = `scale(${zoom}) rotate(${rotation}deg)`;
+
+        // Set total slices (for now, assume single slice)
+        setTotalSlices(1);
+        setCurrentSlice(0);
+
+        toast.success('DICOM image loaded successfully');
+
+      } catch (error) {
+        console.error('Failed to load DICOM image:', error);
+        toast.error('Failed to load DICOM image. The file may be corrupted or in an unsupported format.');
+      }
+    };
+
+    loadDicomImage();
+  }, [currentDicomId, isCornerstoneInitialized, renderingEngine, brightness, contrast, zoom, rotation]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -447,9 +561,6 @@ export function DicomViewer({
                     width={800}
                     height={600}
                     className="w-full h-full object-contain"
-                    style={{
-                      filter: `brightness(${100 + brightness}%) contrast(${100 + contrast}%)`,
-                    }}
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full text-white">
