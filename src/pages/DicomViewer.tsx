@@ -3,14 +3,17 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Upload, Eye, ZoomIn, ZoomOut, RotateCcw, Brain, FileImage } from "lucide-react";
+import { Eye, Brain, FileImage, ZoomIn, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { dicomApi, DicomUploadResponse, DicomAnalysisResult } from "@/lib/api";
+import { dicomApi, DicomUploadResponse, DicomAnalysisResult, DicomUploadRequest } from "@/lib/api";
+import { DicomUploadForm } from "@/components/dicom/DicomUploadForm";
+import { DicomImageViewer } from "@/components/dicom/DicomImageViewer";
 
 export default function DicomViewer() {
   const [uploadedFiles, setUploadedFiles] = useState<DicomUploadResponse[]>([]);
   const [selectedFile, setSelectedFile] = useState<DicomUploadResponse | null>(null);
+  const [currentDicomFile, setCurrentDicomFile] = useState<File | null>(null);
   const [analysis, setAnalysis] = useState<DicomAnalysisResult | null>(null);
 
   // Fetch existing analyses
@@ -46,23 +49,13 @@ export default function DicomViewer() {
     },
   });
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
-    const dicomFiles = files.filter(file =>
-      file.name.toLowerCase().endsWith('.dcm') ||
-      file.name.toLowerCase().endsWith('.dicom') ||
-      file.type === 'application/dicom'
-    );
+  const handleUpload = (data: DicomUploadRequest) => {
+    setCurrentDicomFile(data.file);
+    uploadMutation.mutate(data);
+  };
 
-    if (dicomFiles.length === 0) {
-      toast.error("Please select valid DICOM files (.dcm, .dicom)");
-      return;
-    }
-
-    // Upload each file
-    dicomFiles.forEach(file => {
-      uploadMutation.mutate(file);
-    });
+  const handleFileSelect = (file: File | null) => {
+    setCurrentDicomFile(file);
   };
 
   const handleAnalysis = async () => {
@@ -75,99 +68,61 @@ export default function DicomViewer() {
       <PageHeader title="DICOM Viewer & CDSS" />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* File Upload */}
-        <Card className="p-6">
-          <div className="space-y-4">
-            <div className="text-center">
-              <div className="w-16 h-16 mx-auto bg-muted rounded-full flex items-center justify-center mb-4">
-                <Upload className="w-8 h-8 text-muted-foreground" />
-              </div>
-              <h3 className="text-lg font-semibold">Upload DICOM Files</h3>
-              <p className="text-muted-foreground text-sm">
-                Select DICOM files for analysis and viewing
-              </p>
-            </div>
-            <input
-              type="file"
-              multiple
-              accept=".dcm,.dicom,application/dicom"
-              onChange={handleFileUpload}
-              className="hidden"
-              id="dicom-upload"
-            />
-            <label htmlFor="dicom-upload">
-              <Button className="w-full" asChild>
-                <span>
-                  <Upload className="w-4 h-4 mr-2" />
-                  Choose Files
-                </span>
-              </Button>
-            </label>
-
-            {uploadedFiles.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="font-medium">Uploaded Files:</h4>
-                {uploadedFiles.map((file) => (
-                  <div
-                    key={file.id}
-                    className={`p-2 rounded border cursor-pointer ${
-                      selectedFile?.id === file.id ? 'border-primary bg-primary/5' : 'border-border'
-                    }`}
-                    onClick={() => setSelectedFile(file)}
-                  >
-                    <div className="flex items-center gap-2">
-                      <FileImage className="w-4 h-4" />
-                      <span className="text-sm truncate">{file.fileName}</span>
-                      <Badge variant="outline" className="text-xs">
-                        {new Date(file.uploadedAt).toLocaleDateString()}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </Card>
+        {/* File Upload Form */}
+        <DicomUploadForm 
+          onUpload={handleUpload}
+          isUploading={uploadMutation.isPending}
+          onFileSelect={handleFileSelect}
+        />
 
         {/* Viewer */}
         <Card className="p-6 lg:col-span-2">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold">DICOM Viewer</h3>
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline">
-                  <ZoomIn className="w-4 h-4" />
-                </Button>
-                <Button size="sm" variant="outline">
-                  <ZoomOut className="w-4 h-4" />
-                </Button>
-                <Button size="sm" variant="outline">
-                  <RotateCcw className="w-4 h-4" />
-                </Button>
-              </div>
+              {selectedFile && (
+                <Badge variant="outline">{selectedFile.fileName}</Badge>
+              )}
             </div>
 
-            <div className="aspect-square bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border">
-              {selectedFile ? (
-                <div className="text-center">
-                  <FileImage className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-                  <p className="font-medium">{selectedFile.fileName}</p>
-                  <p className="text-sm text-muted-foreground">
-                    DICOM image loaded - Interactive viewing available
-                  </p>
-                  <div className="flex justify-center gap-2 mt-4">
-                    <Badge variant="secondary">Windowing</Badge>
-                    <Badge variant="secondary">MPR</Badge>
-                    <Badge variant="secondary">3D Render</Badge>
-                  </div>
-                </div>
-              ) : (
+            {currentDicomFile ? (
+              <DicomImageViewer file={currentDicomFile} />
+            ) : (
+              <div className="aspect-square bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border">
                 <div className="text-center text-muted-foreground">
                   <Eye className="w-16 h-16 mx-auto mb-4" />
                   <p>Select a DICOM file to view</p>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
+
+            {/* Uploaded Files List */}
+            {uploadedFiles.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="font-medium">Uploaded Files:</h4>
+                <div className="grid gap-2">
+                  {uploadedFiles.map((file) => (
+                    <div
+                      key={file.id}
+                      className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                        selectedFile?.id === file.id 
+                          ? 'border-primary bg-primary/5' 
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                      onClick={() => setSelectedFile(file)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <FileImage className="w-4 h-4 text-primary" />
+                        <span className="text-sm font-medium truncate">{file.fileName}</span>
+                        <Badge variant="outline" className="text-xs ml-auto">
+                          {new Date(file.uploadedAt).toLocaleDateString()}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </Card>
       </div>

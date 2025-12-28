@@ -203,6 +203,12 @@ export const appointmentsApi = {
   },
 };
 
+export interface MyPatientsResponse {
+  patients: PatientSendDto[];
+  totalPages: number;
+  currentPage: number;
+}
+
 export const physiciansApi = {
   getAll: async (): Promise<PhysicianSendDto[]> => {
     const res = await fetch(`${BASE_URL}/Physician/GetAllPhysicians`, {
@@ -217,6 +223,14 @@ export const physiciansApi = {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch physician");
+    return res.json();
+  },
+
+  getMyPatients: async (physicianId: number, pageNumber: number = 1): Promise<MyPatientsResponse> => {
+    const res = await fetch(`${BASE_URL}/physician/GetMyPatients/${physicianId}?pageNumber=${pageNumber}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch physician's patients");
     return res.json();
   },
 
@@ -454,6 +468,7 @@ export const physicianScheduleApi = {
   getFreeAppointments: async (physicianId: number, date: string): Promise<string[]> => {
     const res = await fetch(`${BASE_URL}/Physician/FreeAppointments/Day/${physicianId}?date=${date}`, {
       headers: getAuthHeaders(),
+      cache: "no-store",
     });
     if (!res.ok) throw new Error("Failed to fetch free appointments");
     return res.json();
@@ -605,6 +620,13 @@ export interface DicomAnalysisResult {
   patientId?: number;
 }
 
+export interface DicomUploadRequest {
+  patientId: number;
+  physicianId: number;
+  file: File;
+  notes?: string;
+}
+
 export interface DicomUploadResponse {
   id: string;
   fileName: string;
@@ -614,13 +636,14 @@ export interface DicomUploadResponse {
 
 export const dicomApi = {
   // Upload DICOM file
-  uploadDicom: async (file: File): Promise<DicomUploadResponse> => {
+  uploadDicom: async (data: DicomUploadRequest): Promise<DicomUploadResponse> => {
     const formData = new FormData();
-    formData.append('File', file);
-    // Add required fields for upload
-    formData.append('PatientId', '1'); // This should come from context
-    formData.append('PhysicianId', '1'); // This should come from context
-    formData.append('Notes', 'Uploaded via DICOM viewer');
+    formData.append('PatientId', data.patientId.toString());
+    formData.append('PhysicianId', data.physicianId.toString());
+    formData.append('File', data.file);
+    if (data.notes) {
+      formData.append('Notes', data.notes);
+    }
 
     const res = await fetch(`${BASE_URL}/Dicom/upload`, {
       method: "POST",

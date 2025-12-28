@@ -45,6 +45,7 @@ export interface PhysicianSignupData {
   phone: string;
   userName: string;
   image: File | null;
+  sessionPrice: number;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -151,6 +152,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       formData.append('Password', data.password);
       formData.append('Phone', data.phone);
       formData.append('UserName', data.userName);
+      formData.append('SessionPrice', data.sessionPrice.toString());
       if (data.image) {
         formData.append('Image', data.image);
       }
