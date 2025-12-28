@@ -335,7 +335,7 @@ export default function PhysicianProfile() {
                 {myPatientsData.patients.map((patient) => (
                   <div
                     key={patient.id}
-                    onClick={() => navigate(`/patients/${patient.id}`)}
+                    onClick={() => navigate(`/patient-profile/${patient.id}`)}
                     className="p-4 rounded-lg bg-muted/50 border border-border hover:bg-muted hover:border-primary/30 transition-colors cursor-pointer"
                   >
                     <div className="flex items-center gap-3">
