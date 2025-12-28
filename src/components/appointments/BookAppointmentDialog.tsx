@@ -29,6 +29,7 @@ import {
   physicianScheduleApi,
   physiciansApi,
   stripeApi,
+  getAssetUrl,
   PhysicianSendDto,
   SpecializationDto,
 } from "@/lib/api";
@@ -445,7 +446,7 @@ export function BookAppointmentDialog({
                   <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center overflow-hidden">
                     {physician.image ? (
                       <img
-                        src={`data:image/jpeg;base64,${physician.image}`}
+                        src={getAssetUrl(physician.image) || undefined}
                         alt={physician.name}
                         className="w-full h-full object-cover"
                       />
