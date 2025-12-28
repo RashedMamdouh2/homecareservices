@@ -90,41 +90,66 @@ export function DicomImageViewer({ file }: DicomImageViewerProps) {
       const slices: DicomSlice[] = [];
       const pixelDataOffset = pixelDataElement.dataOffset;
       const pixelDataLength = pixelDataElement.length;
-      const frameSize = rows * columns * (bitsAllocated / 8) * samplesPerPixel;
+      const pixelCount = rows * columns * samplesPerPixel;
+      const bytesPerPixel = bitsAllocated / 8;
+      const frameSize = pixelCount * bytesPerPixel;
 
       // Handle multiple frames/slices
       for (let frame = 0; frame < numberOfFrames; frame++) {
         const frameOffset = pixelDataOffset + (frame * frameSize);
         let pixelData: Int16Array | Uint16Array | Uint8Array;
 
-        if (bitsAllocated === 16) {
-          if (pixelRepresentation === 1) {
-            pixelData = new Int16Array(arrayBuffer, frameOffset, rows * columns);
+        try {
+          if (bitsAllocated === 16) {
+            // For 16-bit data, we need to handle unaligned access
+            // Copy the data to a new aligned buffer
+            const frameBytes = new Uint8Array(arrayBuffer, frameOffset, Math.min(pixelCount * 2, pixelDataLength - (frame * frameSize)));
+            const alignedBuffer = new ArrayBuffer(pixelCount * 2);
+            const alignedView = new Uint8Array(alignedBuffer);
+            alignedView.set(frameBytes.slice(0, pixelCount * 2));
+            
+            if (pixelRepresentation === 1) {
+              pixelData = new Int16Array(alignedBuffer);
+            } else {
+              pixelData = new Uint16Array(alignedBuffer);
+            }
+          } else if (bitsAllocated === 8) {
+            pixelData = new Uint8Array(arrayBuffer, frameOffset, Math.min(pixelCount, pixelDataLength - (frame * frameSize)));
           } else {
-            pixelData = new Uint16Array(arrayBuffer, frameOffset, rows * columns);
+            // Handle other bit depths by reading as bytes and converting
+            const frameBytes = new Uint8Array(arrayBuffer, frameOffset, Math.min(pixelCount * 2, pixelDataLength - (frame * frameSize)));
+            const alignedBuffer = new ArrayBuffer(pixelCount * 2);
+            const alignedView = new Uint8Array(alignedBuffer);
+            alignedView.set(frameBytes.slice(0, pixelCount * 2));
+            pixelData = new Uint16Array(alignedBuffer);
           }
-        } else if (bitsAllocated === 8) {
-          pixelData = new Uint8Array(arrayBuffer, frameOffset, rows * columns);
-        } else {
-          // Handle other bit depths
-          pixelData = new Uint16Array(arrayBuffer, frameOffset, rows * columns);
-        }
 
-        slices.push({
-          pixelData,
-          instanceNumber: instanceNumber + frame,
-          sliceLocation: sliceLocation + frame,
-        });
+          slices.push({
+            pixelData,
+            instanceNumber: instanceNumber + frame,
+            sliceLocation: sliceLocation + frame,
+          });
+        } catch (frameError) {
+          console.warn(`Error processing frame ${frame}:`, frameError);
+          // Continue with other frames if one fails
+        }
       }
 
-      // If still no slices, try to extract all pixel data as single slice
+      // If still no slices, try to extract all pixel data as single slice with proper handling
       if (slices.length === 0) {
         let pixelData: Int16Array | Uint16Array | Uint8Array;
+        
         if (bitsAllocated === 16) {
+          // Copy to aligned buffer for 16-bit data
+          const pixelBytes = byteArray.slice(pixelDataOffset, pixelDataOffset + pixelDataLength);
+          const alignedBuffer = new ArrayBuffer(pixelBytes.length);
+          const alignedView = new Uint8Array(alignedBuffer);
+          alignedView.set(pixelBytes);
+          
           if (pixelRepresentation === 1) {
-            pixelData = new Int16Array(arrayBuffer, pixelDataOffset, pixelDataLength / 2);
+            pixelData = new Int16Array(alignedBuffer);
           } else {
-            pixelData = new Uint16Array(arrayBuffer, pixelDataOffset, pixelDataLength / 2);
+            pixelData = new Uint16Array(alignedBuffer);
           }
         } else {
           pixelData = new Uint8Array(arrayBuffer, pixelDataOffset, pixelDataLength);
