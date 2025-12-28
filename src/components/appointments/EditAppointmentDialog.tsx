@@ -93,8 +93,8 @@ export function EditAppointmentDialog({
       endTime: string;
       patientId: number;
       physicianId: number;
-      meetingAddress: string;
-      physicianNotes: string;
+      MeetingAddress: string;
+      PhysicianNotes: string;
     }) => appointmentsApi.update(appointment!.id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
