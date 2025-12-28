@@ -200,6 +200,12 @@ export const appointmentsApi = {
   },
 };
 
+export interface MyPatientsResponse {
+  patients: PatientSendDto[];
+  totalPages: number;
+  currentPage: number;
+}
+
 export const physiciansApi = {
   getAll: async (): Promise<PhysicianSendDto[]> => {
     const res = await fetch(`${BASE_URL}/physician/GetAllPhysicians`, {
@@ -214,6 +220,14 @@ export const physiciansApi = {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch physician");
+    return res.json();
+  },
+
+  getMyPatients: async (physicianId: number, pageNumber: number = 1): Promise<MyPatientsResponse> => {
+    const res = await fetch(`${BASE_URL}/physician/GetMyPatients/${physicianId}?pageNumber=${pageNumber}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to fetch physician's patients");
     return res.json();
   },
 
