@@ -157,6 +157,7 @@ namespace Homecare.Controllers
         {
             var dicomFiles = _unitOfWork.DicomFiles.FindAll(d => d.PatientId == patientId,
                 new[] { nameof(DicomFile.Patient), nameof(DicomFile.Physician) })
+                .Where(d => System.IO.File.Exists(d.FilePath)) // Only return files that actually exist on disk
                 .OrderByDescending(d => d.UploadDate);
 
             var dicomDtos = dicomFiles.Select(dicomFile => new DicomFileSendDto
