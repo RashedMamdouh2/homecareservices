@@ -1,16 +1,17 @@
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
+import React from "react";
 
 interface StatCardProps {
   title: string;
   value: string | number;
   subtitle?: string;
-  icon: LucideIcon;
+  icon: LucideIcon | React.ReactElement;
   trend?: {
     value: number;
     positive: boolean;
   };
-  variant?: "default" | "primary" | "success" | "warning";
+  variant?: "default" | "primary" | "success" | "warning" | "secondary" | "accent";
   className?: string;
 }
 
@@ -21,6 +22,14 @@ const variants = {
   },
   primary: {
     iconBg: "bg-accent",
+    iconColor: "text-primary",
+  },
+  secondary: {
+    iconBg: "bg-secondary",
+    iconColor: "text-secondary-foreground",
+  },
+  accent: {
+    iconBg: "bg-primary/10",
     iconColor: "text-primary",
   },
   success: {
@@ -77,7 +86,16 @@ export function StatCard({
             styles.iconBg
           )}
         >
-          <Icon className={cn("w-6 h-6", styles.iconColor)} />
+          {React.isValidElement(Icon) ? (
+            React.cloneElement(Icon as React.ReactElement<{ className?: string }>, {
+              className: cn("w-6 h-6", styles.iconColor),
+            })
+          ) : (
+            (() => {
+              const IconComponent = Icon as LucideIcon;
+              return <IconComponent className={cn("w-6 h-6", styles.iconColor)} />;
+            })()
+          )}
         </div>
       </div>
     </div>

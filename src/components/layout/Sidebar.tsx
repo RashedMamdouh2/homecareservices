@@ -14,7 +14,8 @@ import {
   CreditCard,
   Eye,
   BarChart3,
-  Brain
+  Brain,
+  Settings
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,7 @@ export function Sidebar() {
   // Filter nav items based on role
   const navItems = [
     { to: "/", icon: LayoutDashboard, label: "Dashboard", roles: ['admin', 'patient', 'physician'] },
+    { to: "/admin", icon: Settings, label: "Admin Dashboard", roles: ['admin'] },
     { to: "/appointments", icon: Calendar, label: "Appointments", roles: ['admin', 'patient', 'physician'] },
     { to: "/specializations", icon: Layers, label: "Specializations", roles: ['admin', 'patient', 'physician'] },
     { to: "/physicians", icon: Stethoscope, label: "Physicians", roles: ['admin'] },
