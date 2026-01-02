@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { Plus, Trash2, Clock, FileDown, X, Search, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { VoiceNoteRecorder } from "./VoiceNoteRecorder";
 
 interface AddReportDialogProps {
   open: boolean;
@@ -49,6 +50,8 @@ export function AddReportDialog({
   const [medications, setMedications] = useState<MedicationForm[]>([]);
   const [showTimeSelector, setShowTimeSelector] = useState<number | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [voiceNoteBase64, setVoiceNoteBase64] = useState<string | null>(null);
+  const [voiceNoteMimeType, setVoiceNoteMimeType] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   // Diagnosis state
@@ -97,13 +100,20 @@ export function AddReportDialog({
 
   const mutation = useMutation({
     mutationFn: async () => {
-      // First add the report
-      const pdfPath = await appointmentsApi.addReport(appointmentId, {
+      // First add the report with voice note if available
+      const reportData: any = {
         descritpion: description,
         patientId,
         physicianId,
         medications: medications as ReportMedicationDto[],
-      });
+      };
+      
+      if (voiceNoteBase64 && voiceNoteMimeType) {
+        reportData.voiceNote = voiceNoteBase64;
+        reportData.voiceNoteMimeType = voiceNoteMimeType;
+      }
+      
+      const pdfPath = await appointmentsApi.addReport(appointmentId, reportData);
 
       // If a disease is selected, add the diagnosis
       if (selectedDisease) {
@@ -133,12 +143,24 @@ export function AddReportDialog({
     setMedications([]);
     setShowTimeSelector(null);
     setPdfUrl(null);
+    setVoiceNoteBase64(null);
+    setVoiceNoteMimeType(null);
     setDiseaseSearch("");
     setDiseaseResults([]);
     setSelectedDisease(null);
     setDiagnosisDate(new Date().toISOString().split("T")[0]);
     setRecoveryDate("");
     setShowDiseaseDropdown(false);
+  };
+
+  const handleVoiceRecordingComplete = (audioBlob: Blob, base64Audio: string) => {
+    setVoiceNoteBase64(base64Audio);
+    setVoiceNoteMimeType(audioBlob.type);
+  };
+
+  const handleVoiceRecordingRemove = () => {
+    setVoiceNoteBase64(null);
+    setVoiceNoteMimeType(null);
   };
 
   const selectDisease = (disease: DiseaseSearchResult) => {
@@ -240,6 +262,16 @@ export function AddReportDialog({
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Enter report description..."
               rows={3}
+            />
+          </div>
+
+          {/* Voice Note Section */}
+          <div className="space-y-2">
+            <Label>Voice Note (Optional)</Label>
+            <VoiceNoteRecorder
+              onRecordingComplete={handleVoiceRecordingComplete}
+              onRecordingRemove={handleVoiceRecordingRemove}
+              hasRecording={!!voiceNoteBase64}
             />
           </div>
 

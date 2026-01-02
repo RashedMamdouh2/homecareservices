@@ -127,6 +127,8 @@ export interface ReportCreateDto {
   patientId: number;
   physicianId: number;
   medications: ReportMedicationDto[];
+  voiceNote?: string; // Base64 encoded audio
+  voiceNoteMimeType?: string; // MIME type of the audio (e.g., "audio/webm")
 }
 
 export const appointmentsApi = {
