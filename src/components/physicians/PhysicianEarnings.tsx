@@ -1,9 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Wallet, TrendingUp, ArrowDownToLine, DollarSign } from "lucide-react";
+import { Wallet, TrendingUp, ArrowDownToLine, DollarSign, History } from "lucide-react";
 import { getAuthHeaders } from "@/lib/api";
 import { toast } from "sonner";
+import { Link } from "react-router-dom";
 
 const API_BASE_URL = "https://homecareservice.runasp.net/api";
 
@@ -136,14 +137,22 @@ export function PhysicianEarnings({ physicianId }: PhysicianEarningsProps) {
               {earnings?.completedAppointments || 0} completed appointments
             </p>
           </div>
-          <Button
-            onClick={handleWithdraw}
-            disabled={!earnings?.availableBalance || earnings.availableBalance <= 0 || withdrawMutation.isPending}
-            className="gap-2"
-          >
-            <ArrowDownToLine className="w-4 h-4" />
-            {withdrawMutation.isPending ? "Processing..." : "Withdraw Funds"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" asChild className="gap-2">
+              <Link to="/withdrawal-history">
+                <History className="w-4 h-4" />
+                History
+              </Link>
+            </Button>
+            <Button
+              onClick={handleWithdraw}
+              disabled={!earnings?.availableBalance || earnings.availableBalance <= 0 || withdrawMutation.isPending}
+              className="gap-2"
+            >
+              <ArrowDownToLine className="w-4 h-4" />
+              {withdrawMutation.isPending ? "Processing..." : "Withdraw Funds"}
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
