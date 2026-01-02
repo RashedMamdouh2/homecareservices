@@ -23,6 +23,7 @@ import DicomViewer from "./pages/DicomViewer";
 import Reports from "./pages/Reports";
 import CDSS from "./pages/CDSS";
 import AdminDashboard from "./pages/AdminDashboard";
+import WithdrawalHistory from "./pages/WithdrawalHistory";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -186,6 +187,16 @@ const AppRoutes = () => {
           <ProtectedRoute allowedRoles={['physician']}>
             <MainLayout>
               <PhysicianProfile />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/withdrawal-history"
+        element={
+          <ProtectedRoute allowedRoles={['physician']}>
+            <MainLayout>
+              <WithdrawalHistory />
             </MainLayout>
           </ProtectedRoute>
         }
