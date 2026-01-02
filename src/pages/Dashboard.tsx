@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { Calendar, Users, Stethoscope, Activity, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { PhysicianEarnings } from "@/components/physicians/PhysicianEarnings";
 
 export default function Dashboard() {
   const { user, isPatient, isPhysician, isAdmin } = useAuth();
@@ -91,6 +92,11 @@ export default function Dashboard() {
           />
         )}
       </div>
+
+      {/* Physician Earnings Section */}
+      {isPhysician && user?.physicianId && (
+        <PhysicianEarnings physicianId={user.physicianId} />
+      )}
 
       {/* Recent Appointments */}
       <section>
