@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { Bell, Check, CheckCheck, Trash2, Calendar, CreditCard, FileText, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +15,21 @@ import { cn } from "@/lib/utils";
 import { getAuthToken } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+
+// Validate that a URL is safe for navigation (internal links only)
+const isInternalLink = (url: string): boolean => {
+  // Allow relative paths starting with /
+  if (url.startsWith('/') && !url.startsWith('//')) {
+    return true;
+  }
+  // Allow same-origin URLs
+  try {
+    const parsedUrl = new URL(url, window.location.origin);
+    return parsedUrl.origin === window.location.origin;
+  } catch {
+    return false;
+  }
+};
 
 const API_BASE_URL = "https://homecareservice.runasp.net/api";
 
@@ -90,8 +106,9 @@ const getNotificationIcon = (type: Notification["type"]) => {
 export function NotificationDropdown() {
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
-  const { data: notifications = [], refetch } = useQuery({
+  const { data: notifications = [] } = useQuery({
     queryKey: ["notifications"],
     queryFn: fetchNotifications,
     refetchInterval: 30000, // Poll every 30 seconds
@@ -127,7 +144,14 @@ export function NotificationDropdown() {
       markAsReadMutation.mutate(notification.id);
     }
     if (notification.link) {
-      window.location.href = notification.link;
+      // Security: Only allow internal links to prevent open redirect attacks
+      if (isInternalLink(notification.link)) {
+        navigate(notification.link);
+      } else {
+        // Log potential security issue without exposing to user
+        console.warn('Blocked external redirect attempt from notification');
+        toast.error('Invalid notification link');
+      }
     }
   };
 
@@ -227,7 +251,7 @@ export function NotificationDropdown() {
                 className="w-full text-xs h-8"
                 onClick={() => {
                   setOpen(false);
-                  window.location.href = "/notifications";
+                  navigate("/notifications");
                 }}
               >
                 View all notifications
