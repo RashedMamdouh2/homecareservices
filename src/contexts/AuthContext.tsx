@@ -57,13 +57,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for stored auth on mount
-    const storedUser = localStorage.getItem('auth_user');
+    // Check for stored auth on mount - use sessionStorage for improved security
+    const storedUser = sessionStorage.getItem('auth_user');
     if (storedUser) {
       try {
         setUser(JSON.parse(storedUser));
       } catch {
-        localStorage.removeItem('auth_user');
+        sessionStorage.removeItem('auth_user');
       }
     }
     setIsLoading(false);
@@ -102,7 +102,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       };
 
       setUser(userData);
-      localStorage.setItem('auth_user', JSON.stringify(userData));
+      // Use sessionStorage for improved security - tokens cleared when browser closes
+      sessionStorage.setItem('auth_user', JSON.stringify(userData));
       
       return { success: true };
     } catch (error) {
@@ -175,7 +176,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('auth_user');
+    sessionStorage.removeItem('auth_user');
   };
 
   const parseJwt = (token: string) => {
@@ -222,7 +223,7 @@ export const useAuth = () => {
 };
 
 export const getAuthToken = (): string | null => {
-  const storedUser = localStorage.getItem('auth_user');
+  const storedUser = sessionStorage.getItem('auth_user');
   if (storedUser) {
     try {
       const user = JSON.parse(storedUser);
